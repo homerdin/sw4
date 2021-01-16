@@ -86,26 +86,48 @@ int main(int argc, char **argv) {
   // bool checkmode = false;
 
   stringstream reason;
-  presetGPUID();
   // Initialize MPI...
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
 
+  MPI_Info info;
+  MPI_Comm shared_comm;
+  MPI_Info_create(&info);
+  MPI_Comm_split_type(MPI_COMM_WORLD,MPI_COMM_TYPE_SHARED,myRank,info,&shared_comm);
+  int local_rank=-1,local_size=-1;
+  MPI_Comm_rank(shared_comm,&local_rank);
+  MPI_Comm_size(shared_comm,&local_size);
+  MPI_Info_free(&info);
+
+  presetGPUID(myRank,local_rank,local_size);
 #if defined(SW4_SIGNAL_CHECKPOINT)
   std::signal(SIGUSR1, signal_handler);
 #endif
 
 #ifdef SW4_USE_UMPIRE
   umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
+#ifdef ENABLE_HIP
+  auto allocator = rma.getAllocator("DEVICE::"+std::to_string(myRank));
+#else
   auto allocator = rma.getAllocator("UM");
+#endif
   // auto device_allocator = rma.getAllocator("DEVICE");
-
+#ifdef ENABLE_HIP
+  const size_t pool_size =
+      static_cast<size_t>(10) * 1024 * 1024 * 1024;  //+102*1024*1024;
+#else
   const size_t pool_size =
       static_cast<size_t>(15) * 1024 * 1024 * 1024;  //+102*1024*1024;
+#endif 
 
+
+#ifdef ENABLE_HIP
+  auto pref_allocator = allocator;
+#else
   auto pref_allocator = rma.makeAllocator<umpire::strategy::AllocationAdvisor>(
       "preferred_location_device", allocator, "PREFERRED_LOCATION",
       global_variables.device);
+#endif
 
   auto pooled_allocator =
       rma.makeAllocator<umpire::strategy::DynamicPool, true>(
@@ -330,7 +352,7 @@ int main(int argc, char **argv) {
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
-  print_hwm();
+  print_hwm(myRank);
 
 #ifdef USE_MAGMA
   if (magma_finalize() != MAGMA_SUCCESS) {

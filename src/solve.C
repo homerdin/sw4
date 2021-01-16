@@ -47,11 +47,16 @@
 #include "sachdf5.h"
 #endif
 
+#ifdef SW4_TRACK_MPI
+bool StatMachineBase::ProfilerOn(false);
+#endif
+
 void curvilinear4sgwind(int, int, int, int, int, int, int, int, float_sw4*,
                         float_sw4*, float_sw4*, float_sw4*, float_sw4*,
                         float_sw4*, int*, float_sw4*, float_sw4*, float_sw4*,
                         float_sw4*, float_sw4*, float_sw4*, float_sw4*, int,
                         char);
+
 
 #define SQR(x) ((x) * (x))
 
@@ -149,6 +154,9 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
 
   // the Source objects get discretized into GridPointSource objects
   vector<GridPointSource*> point_sources;
+
+  if( m_point_source_test )
+     m_point_source_test->set_source( a_Sources[0] );
 
   // Transfer source terms to each individual grid as point sources at grid
   // points.
@@ -643,6 +651,7 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
   // save initial data on receiver records
   vector<float_sw4> uRec;
 
+  SYNC_STREAM;  // SYNC BEFORE CPU OPS
 #if USE_HDF5
   // Tang: if write HDF5 data and not restart, have rank 0 create the HDF5 file
   // with all necessary groups, attributes, and datasets Disable HDF5 file
@@ -780,11 +789,13 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
     global_variables.firstCycle = currentTimeStep == beginCycle;
     global_variables.current_step = currentTimeStep;
     if (currentTimeStep == mNumberOfTimeSteps[event]) t1 = SW4_CHRONO_NOW;
+    if (currentTimeStep == (beginCycle + 2)) print_hwm(getRank());
     if (currentTimeStep == (beginCycle + 10)) {
       PROFILER_START;
 #ifdef SW4_TRACK_MPI
       t6 = SW4_CHRONO_NOW;
       ProfilerOn = true;
+      StatMachineBase::ProfilerOn = true;
 #endif
     }
 #ifdef SW4_TRACK_MPI
@@ -934,7 +945,7 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
       SW4_PEEK;
       SYNC_DEVICE;
 #endif
-      // std::cout<<"HERE ALOS 4th\n";
+
       SW4_MARK_BEGIN("MPI_WTIME");
       if (m_output_detailed_timing) time_measure[7] = MPI_Wtime();
       SW4_MARK_END("MPI_WTIME");
@@ -966,7 +977,7 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
 
       // if( m_output_detailed_timing )
       //    time_measure[10] = MPI_Wtime();
-      // std::cout<<"HERE 4th\n";
+
       evalDpDmInTime(Up, U, Um, Uacc);  // store result in Uacc
       if (trace && m_myRank == dbgproc) cout << " after evalDpDmInTime" << endl;
 
@@ -1148,7 +1159,7 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
       m_check_point->write_checkpoint(t, currentTimeStep, U, Up, AlphaVE,
                                       AlphaVEp);
       double time_chkpt_tmp = MPI_Wtime() - time_chkpt;
-      if (mVerbose >= 2)
+      if (mVerbose >= 0)
 
       {
         MPI_Allreduce(&time_chkpt_tmp, &time_chkpt, 1, MPI_DOUBLE, MPI_MAX,
@@ -1244,16 +1255,18 @@ void EW::solve(vector<Source*>& a_Sources, vector<TimeSeries*>& a_TimeSeries,
     }
 #ifdef SW4_TRACK_MPI
     std::chrono::high_resolution_clock::time_point t4 = SW4_CHRONO_NOW;
-    if (ProfilerOn) step_sm.insert(0, SW4_CHRONO_DURATION_MS(t3, t4));
+    // if (ProfilerOn) step_sm.insert(0, SW4_CHRONO_DURATION_MS(t3, t4));
+    step_sm.insert(0, SW4_CHRONO_DURATION_MS(t3, t4));
 #endif
 
     if (currentTimeStep == mNumberOfTimeSteps[event]) {
       t2 = SW4_CHRONO_NOW;
 #ifdef SW4_TRACK_MPI
-      std::cout
-          << "Clean time stepping time "
-          << std::chrono::duration_cast<std::chrono::seconds>(t2 - t6).count()
-          << " s \n";
+      std::cout << "Clean time stepping time "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(t2 -
+                                                                         t6)
+                       .count()
+                << " s \n";
 #endif
       if (proc_zero()) {
         std::cout << " Time for the last time step is "
@@ -4307,18 +4320,22 @@ void EW::testSourceDiscretization(int kx[3], int ky[3], int kz[3],
     F[g](2, i, j, k) += f2;
     F[g](3, i, j, k) += f3;
   }
-  //  for( int s= 0 ; s < point_sources.size() ; s++ )
-  //  {
-  //     float_sw4 fxyz[3];
-  //     point_sources[s]->getFxyz_notime( fxyz );
-  //     int g = point_sources[s]->m_grid;
-  //     F[g](1,point_sources[s]->m_i0,point_sources[s]->m_j0,point_sources[s]->m_k0)
-  //     += fxyz[0];
-  //     F[g](2,point_sources[s]->m_i0,point_sources[s]->m_j0,point_sources[s]->m_k0)
-  //     += fxyz[1];
-  //     F[g](3,point_sources[s]->m_i0,point_sources[s]->m_j0,point_sources[s]->m_k0)
-  //     += fxyz[2];
-  //  }
+  for( int g=mNumberOfCartesianGrids ; g < mNumberOfGrids-1 ; g++ )
+  {
+     communicate_array( F[g], g );
+     m_cli2[g-mNumberOfCartesianGrids]->prolongate2D( F[g], F[g+1], 1, m_global_nz[g+1] );
+  }
+  int ncurv=mNumberOfGrids-mNumberOfCartesianGrids;
+  if( ncurv > 0 && !m_gridGenerator->curviCartIsSmooth(ncurv) )
+  {
+     int g=mNumberOfCartesianGrids;
+     int Nz=m_global_nz[g];
+     for( int j=m_jStartInt[g] ; j <= m_jEndInt[g] ; j++ )
+        for( int i=m_iStartInt[g] ; i <= m_iEndInt[g] ; i++ )
+           for( int c=1; c<= 3; c++)
+              F[g](c,i,j,Nz) = F[g-1](c,i,j,1);
+  }
+
   float_sw4 momgrid[3] = {0, 0, 0};
   for (g = 0; g < mNumberOfGrids; g++) {
     ifirst = m_iStart[g];
@@ -4338,18 +4355,17 @@ void EW::testSourceDiscretization(int kx[3], int ky[3], int kz[3],
     wind[4] = m_kStartInt[g];
     wind[5] = m_kEndInt[g];
     int nz = m_global_nz[g];
-    if (m_croutines)
+    if (g <= mNumberOfCartesianGrids-1 )
       testsrc_ci(f_ptr, ifirst, ilast, jfirst, jlast, kfirst, klast, nz, wind,
                  m_zmin[g], h, kx, ky, kz, momgrid);
     else
-      testsrc(f_ptr, &ifirst, &ilast, &jfirst, &jlast, &kfirst, &klast, &nz,
-              wind, &m_zmin[g], &h, kx, ky, kz, momgrid);
+       testsrcc_ci( f_ptr, ifirst, ilast, jfirst, jlast, kfirst, klast,
+                    nz, g, wind, kx, ky, kz, momgrid );
   }
   MPI_Allreduce(momgrid, moments, 3, m_mpifloat, MPI_SUM,
                 m_cartesian_communicator);
 }
 
-//-----------------------------------------------------------------------
 //-----------------------------------------------------------------------
 void EW::extractRecordData(TimeSeries::receiverMode mode, int i0, int j0,
                            int k0, int g0, vector<float_sw4>& uRec,
@@ -5343,7 +5359,7 @@ void EW::CurviCartIC(int gcart, vector<Sarray>& a_U, vector<Sarray>& a_Mu,
                 a_Mu[gcart].c_ptr(), a_Lambda[gcart].c_ptr(), h,
                 m_sg_str_x[gcart], m_sg_str_y[gcart], m_sg_str_z[gcart], '=',
                 kbca, keca, 1, 1);
-
+    SYNC_STREAM;
     compute_icstresses_cpu(a_U[gcart], Bca, gcart, 1, m_sg_str_x[gcart],
                            m_sg_str_y[gcart], m_sbop, '=');
     // Modifed RAJA version
@@ -5928,7 +5944,8 @@ void EW::cartesian_bc_forcing(float_sw4 t, vector<float_sw4**>& a_BCForcing,
             float_sw4 omstry = m_supergrid_taper_y[g].get_tw_omega();
 
             // Stress tensor on boundary
-            Sarray tau(6, ifirst, ilast, jfirst, jlast, 1, 1);
+            Sarray tau(6, ifirst, ilast, jfirst, jlast, 1, 1, __FILE__,
+                       __LINE__);
             // Get twilight stress tensor, tau.
             // FTNC	       if( m_croutines )
             twstensorsg_ci(ifirst, ilast, jfirst, jlast, kfirst, klast, k, t,

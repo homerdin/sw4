@@ -133,8 +133,9 @@ ifeq ($(etree),yes)
    CXXFLAGS += -DENABLE_ETREE -DENABLE_PROJ4 -I$(SW4INC)
    linklibs += -L$(SW4LIB) -lcencalvm -lproj
 else ifeq ($(proj),yes)
+#   CXXFLAGS += -DENABLE_PROJ4
    CXXFLAGS += -DENABLE_PROJ4 -I$(SW4INC)
-   linklibs += -L$(SW4LIB) -lproj
+#   linklibs += -L$(SW4LIB) -lproj
    etree := "no"
 else
    etree := "no"
@@ -201,8 +202,8 @@ OBJ  = EW.o Sarray.o version.o parseInputFile.o ForcingTwilight.o \
        updatememvar.o addmemvarforcing2.o addsg4wind.o consintp.o scalar_prod.o oddIoddJinterp.o evenIoddJinterp.o \
        oddIevenJinterp.o evenIevenJinterp.o CheckPoint.o Mspace.o RandomizedMaterial.o AllDims.o Patch.o ESSI3D.o \
 	MaterialSfile.o MaterialInvtest.o geodyn.o ESSI3DHDF5.o sachdf5.o readhdf5.o CurvilinearInterface2.o \
-	TestEcons.o TestTwilight.o  curvilinear4sgwind.o GridGeneratorGeneral.o GridGeneratorGaussianHill.o \
-	GridGenerator.o RHS43DEV.o curvilinear4sgcX1.o SfileOutput.o
+	TestEcons.o TestTwilight.o  TestPointSource.o curvilinear4sgwind.o GridGeneratorGeneral.o GridGeneratorGaussianHill.o \
+	GridGenerator.o RHS43DEV.o curvilinear4sgcX1.o SfileOutput.o 
 
 
 # new C-routines converted from fortran
@@ -235,7 +236,7 @@ sw4: $(FSW4) $(FOBJ)
 	@echo "FC=" $(FC) " EXTRA_FORT_FLAGS=" $(EXTRA_FORT_FLAGS)
 	@echo "EXTRA_LINK_FLAGS"= $(EXTRA_LINK_FLAGS)
 	@echo "******************************************************"
-	cd $(builddir); nvcc -dlink -o file_link.o main.o $(OBJ) $(LINKFLAGS) -lcudadevrt -lcudart -lnvidia-ml
+	cd $(builddir); nvcc -arch=sm_70 -dlink -o file_link.o main.o $(OBJ) $(LINKFLAGS) -lcudadevrt -lcudart -lnvidia-ml
 	cd $(builddir); $(LINKER) $(LINKFLAGS) -o $@ main.o file_link.o $(OBJ) $(QUADPACK) $(linklibs)
 # test: linking with openmp for the routine rhs4sgcurv.o
 #	cd $(builddir); $(CXX) $(CXXFLAGS) -qopenmp -o $@ main.o $(OBJ) $(QUADPACK) $(linklibs)
@@ -311,6 +312,6 @@ format:
 ptest: 
 	cd $(builddir); $(CXX) -O3 -std=c++11 --expt-extended-lambda -arch=sm_70 -I$(RAJA_LOCATION)/include -x cu -c -dc ../src/Policies.C
 	cd $(builddir); nvcc -O3 -arch=sm_70 -dlink -o file_link.o Policies.o
-	cd $(builddir); nvcc -O3 -arch=sm_70 -o p file_link.o Policies.o -L $(RAJA_LOCATION)/lib -lRAJA
+	cd $(builddir); nvcc -O3 -arch=sm_70 -o p file_link.o Policies.o -L$(RAJA_LOCATION)/lib -lRAJA
 tags:
 	etags -o src/TAGS src/*.C src/*.h 
