@@ -5,6 +5,7 @@
 #include "F77_FUNC.h"
 #include "GridGenerator.h"
 #include "Sarray.h"
+#include "Mspace.h"
 #include "TestEcons.h"
 #include "TestTwilight.h"
 #include "caliper.h"

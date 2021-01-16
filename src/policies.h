@@ -1,7 +1,7 @@
 #ifndef __SW4_POLICIES_H__
 #define __SW4_POLICIES_H__
 
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
+#if defined(ENABLE_CUDA) || defined(ENABLE_HIP) || defined(ENABLE_SYCL)
 #define ENABLE_GPU 1
 #endif
 
@@ -15,6 +15,10 @@
 
 #ifdef ENABLE_HIP
 #include "hip_policies.h"
+#endif
+
+#ifdef ENABLE_SYCL
+#include "sycl_policies.h"
 #endif
 
 #ifndef ENABLE_GPU

@@ -5,6 +5,7 @@
 
 #include "TestEcons.h"
 #include "TestTwilight.h"
+#include "Mspace.h"
 #ifdef USE_MAGMA
 #include "magma_dbatched.h"
 #include "magma_v2.h"
