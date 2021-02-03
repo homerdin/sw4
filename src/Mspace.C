@@ -240,11 +240,12 @@ void *operator new(std::size_t size, Space loc) throw() {
     // std::cout<<"Managed allocation \n";
     if (size == 0) size = 1;  // new has to return an valid pointer for 0 size.
     void *ptr;
-    if (SW4_MALLOC_DEVICE(&ptr, size) != SW4_DEVICE_SUCCESS) {
-      std::cerr << "Device memory allocation failed " << size << "\n";
-      abort();
+    SW4_MALLOC_DEVICE(&ptr, size)
+//    if (SW4_MALLOC_DEVICE(&ptr, size) != SW4_DEVICE_SUCCESS) {
+  //    std::cerr << "Device memory allocation failed " << size << "\n";
+    //  abort();
       // throw();
-    } else
+//    } else
       return ptr;
   } else if (loc == Space::Pinned) {
     if (size == 0) size = 1;  // new has to return an valid pointer for 0 size.
@@ -342,11 +343,12 @@ void *operator new[](std::size_t size, Space loc) throw() {
     // std::cout<<"Managed allocation \n";
     if (size == 0) size = 1;  // new has to return an valid pointer for 0 size.
     void *ptr;
-    if (SW4_MALLOC_DEVICE(&ptr, size) != SW4_DEVICE_SUCCESS) {
-      std::cerr << "Device memory allocation failed " << size << "\n";
-      abort();
+    SW4_MALLOC_DEVICE(&ptr, size)
+//    if (SW4_MALLOC_DEVICE(&ptr, size) != SW4_DEVICE_SUCCESS) {
+  //    std::cerr << "Device memory allocation failed " << size << "\n";
+    //  abort();
       // throw std::bad_alloc();
-    } else
+   // } else
       return ptr;
   } else if (loc == Space::Pinned) {
     if (size == 0) size = 1;  // new has to return an valid pointer for 0 size.

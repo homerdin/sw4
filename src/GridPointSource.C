@@ -108,7 +108,7 @@ GridPointSource::~GridPointSource() {
 
 //-----------------------------------------------------------------------
 RAJA_HOST_DEVICE
-void GridPointSource::initializeTimeFunction() {
+void GridPointSource::initializeTimeFunction() {/*
   //   if( mTimeDependence != iDiscrete )
   //      mPar[0] = m_min_exponent;
   // printf("mTimeDepe %d \n",mTimeDependence);
@@ -317,7 +317,7 @@ void GridPointSource::initializeTimeFunction() {
       mTimeFunc_ttomom = Gaussian_ttomom;
       mTimeFunc_tom = Gaussian_tom;
       mTimeFunc_omom = Gaussian_omom;
-  }
+  }*/
 }
 
 //-----------------------------------------------------------------------

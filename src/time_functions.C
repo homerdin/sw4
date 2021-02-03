@@ -36,6 +36,8 @@
 #include "Require.h"
 #include "policies.h"
 #include "sw4.h"
+#include <CL/sycl.hpp>
+
 
 RAJA_HOST_DEVICE
 float_sw4 VerySmoothBump(float_sw4 freq, float_sw4 t, float_sw4* par, int npar,
@@ -1502,7 +1504,7 @@ float_sw4 NullFunc(float_sw4 freq, float_sw4 t, float_sw4* par, int npar,
                    int* ipar, int nipar) {
   // this function should never be called
   // CHECK_INPUT(false,"The NullFunc time function was called!");
-  printf("The NullFunc time function was called!");
+//  printf("The NullFunc time function was called!");
   return 0.;
 }
 
@@ -1526,7 +1528,7 @@ float_sw4 Dirac(float_sw4 freq, float_sw4 t, float_sw4* par, int npar,
 
   float_sw4 kc = -t * freq;
   // stencil point of t in [-2,..,2] interval
-  int k0 = (int)floor(kc + 0.5);
+  int k0 = (int)cl::sycl::floor(kc + 0.5);
   //   std::cout << "t="<< t << " kc=" << kc << " k0= " << k0 << std::endl;
   if (k0 < -2 || k0 > 2)
     return 0;
@@ -1572,7 +1574,7 @@ float_sw4 Dirac_t(float_sw4 freq, float_sw4 t, float_sw4* par, int npar,
   // k0 is center of pulse on grid given by t + k*dt
   float_sw4 kc = -t * freq;
   // stencil point of t in [-2,..,2] interval
-  int k0 = (int)floor(kc + 0.5);
+  int k0 = (int)cl::sycl::floor(kc + 0.5);
   if (k0 < -2 || k0 > 2)
     return 0;
   else {
@@ -1611,7 +1613,7 @@ float_sw4 Dirac_tt(float_sw4 freq, float_sw4 t, float_sw4* par, int npar,
   // k0 is center of pulse on grid given by t + k*dt
   float_sw4 kc = -t * freq;
   // stencil point of t in [-2,..,2] interval
-  int k0 = (int)floor(kc + 0.5);
+  int k0 = (int)cl::sycl::floor(kc + 0.5);
   if (k0 < -2 || k0 > 2)
     return 0;
   else {
@@ -1645,7 +1647,7 @@ float_sw4 Dirac_ttt(float_sw4 freq, float_sw4 t, float_sw4* par, int npar,
   // k0 is center of pulse on grid given by t + k*dt
   float_sw4 kc = -t * freq;
   // stencil point of t in [-2,..,2] interval
-  int k0 = (int)floor(kc + 0.5);
+  int k0 = (int)cl::sycl::floor(kc + 0.5);
   if (k0 < -2 || k0 > 2)
     return 0;
   else {
@@ -1679,7 +1681,7 @@ float_sw4 Dirac_tttt(float_sw4 freq, float_sw4 t, float_sw4* par, int npar,
   // k0 is center of pulse on grid given by t + k*dt
   float_sw4 kc = -t * freq;
   // stencil point of t in [-2,..,2] interval
-  int k0 = (int)floor(kc + 0.5);
+  int k0 = (int)cl::sycl::floor(kc + 0.5);
   if (k0 < -2 || k0 > 2)
     return 0;
   else {
@@ -1749,7 +1751,7 @@ float_sw4 Discrete(float_sw4 freq, float_sw4 t, float_sw4* par, int npar,
   float_sw4 tstart = 0;
   int npts = ipar[0];
 
-  int k = static_cast<int>(floor((t - tstart) * freq));
+  int k = static_cast<int>(cl::sycl::floor((t - tstart) * freq));
 
   if (k < 0) {
     k = 0;
@@ -1778,7 +1780,7 @@ float_sw4 Discrete_t(float_sw4 freq, float_sw4 t, float_sw4* par, int npar,
   //   float_sw4 tstart = par[0];
   float_sw4 tstart = 0;
   int npts = ipar[0];
-  int k = static_cast<int>(floor((t - tstart) * freq));
+  int k = static_cast<int>(cl::sycl::floor((t - tstart) * freq));
   if (k < 0) {
     k = 0;
     t = tstart;
@@ -1803,7 +1805,7 @@ float_sw4 Discrete_tt(float_sw4 freq, float_sw4 t, float_sw4* par, int npar,
   //   float_sw4 tstart = par[0];
   float_sw4 tstart = 0;
   int npts = ipar[0];
-  int k = static_cast<int>(floor((t - tstart) * freq));
+  int k = static_cast<int>(cl::sycl::floor((t - tstart) * freq));
   if (k < 0) {
     k = 0;
     t = tstart;
@@ -1827,7 +1829,7 @@ float_sw4 Discrete_ttt(float_sw4 freq, float_sw4 t, float_sw4* par, int npar,
   //   float_sw4 tstart = par[0];
   float_sw4 tstart = 0;
   int npts = ipar[0];
-  int k = static_cast<int>(floor((t - tstart) * freq));
+  int k = static_cast<int>(cl::sycl::floor((t - tstart) * freq));
   if (k < 0) {
     k = 0;
     t = tstart;
@@ -1850,7 +1852,7 @@ float_sw4 Discrete_tttt(float_sw4 freq, float_sw4 t, float_sw4* par, int npar,
   //   float_sw4 tstart = par[0];
   float_sw4 tstart = 0;
   int npts = ipar[0];
-  int k = static_cast<int>(floor((t - tstart) * freq));
+  int k = static_cast<int>(cl::sycl::floor((t - tstart) * freq));
   if (k < 0) {
     t = tstart;
     k = 0;

@@ -624,6 +624,9 @@ EW::EW(const string& fileName, vector<vector<Source*>>& a_GlobalSources,
   MPI_Comm_rank(MPI_COMM_WORLD, &m_myRank);
   MPI_Comm_size(MPI_COMM_WORLD, &m_nProcs);
 
+  QU::qu = new cl::sycl::queue();
+  RAJA::sycl::detail::setQueue(QU::qu);
+
   if (sizeof(float_sw4) == 4)
     m_mpifloat = MPI_FLOAT;
   else if (sizeof(float_sw4) == 8)

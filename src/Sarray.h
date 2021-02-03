@@ -78,9 +78,9 @@ class SView {
     return data[base + offc + i * offi + j * offj + k * offk];
   }
   RAJA_HOST_DEVICE void print(bool cond) const {
-    if (cond)
-      printf("SView pointer = %p base = %d offi = %d %d %d\n", data, int(base),
-             int(offi), int(offj), int(offk));
+//    if (cond)
+//      printf("SView pointer = %p base = %d offi = %d %d %d\n", data, int(base),
+  //           int(offi), int(offj), int(offk));
   }
 };
 

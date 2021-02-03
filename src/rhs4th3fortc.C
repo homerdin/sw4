@@ -2927,7 +2927,9 @@ void ve_bndry_stress_curvi_ci(
     RAJA::RangeSegment j_range(jfirst + 2, jlast - 1);
     SW4_MARK_END("HOST CODE");
 #ifdef ENABLE_GPU
+#ifndef ENABLE_SYCL
 #define NO_COLLAPSE 1
+#endif
 #endif
 #ifdef NO_COLLAPSE
     Range<16> I(ifirst + 2, ilast - 1);

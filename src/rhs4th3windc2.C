@@ -108,7 +108,9 @@ void dpdmt_wind(int ib, int ie, int jb, int je, int kb_tt, int ke_tt, int kb_u,
 //     }
 //   }
 #ifdef ENABLE_GPU
+#ifndef ENABLE_SYCL
 #define NO_COLLAPSE 1
+#endif
 #endif
 #if defined(NO_COLLAPSE)
   Range<16> I(ib, ie + 1);

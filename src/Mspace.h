@@ -47,6 +47,12 @@ void prefetch_to_device(const float_sw4 *ptr);
 #define PROFILER_START
 #define PROFILER_STOP
 #endif
+
+class QU {
+  public:
+    static cl::sycl::queue* qu;
+};
+
 void check_mem();
 void global_prefetch();
 enum class Space : unsigned int {

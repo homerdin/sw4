@@ -1,0 +1,64 @@
+FC = mpifort
+LINKER = mpic++
+CXX = mpic++
+
+proj = yes
+ckernel=yes 
+openmp=no
+raja_sycl=yes
+umpire = yes
+fftw = no
+hdf5= yes
+spill_warns = no
+caliper= no
+RAJA_HOME = /home/bhomerding/install/raja.11.29.2020
+PROJ_HOME = /gpfs/jlse-fs0/users/bhomerding/spack/opt/spack/linux-rhel7-haswell/gcc-9.2.0/proj-7.1.0-eyune6nllfydombkzf4ptsg6puosuq33
+UMPIRE_HOME = /home/bhomerding/install/umpire.2021-01-29
+#CALIPER_HOME = /usr/workspace/wsb/ramesh/Caliper/July2020/Caliper/install
+
+HDF5_HOME = /gpfs/jlse-fs0/users/bhomerding/spack/opt/spack/linux-rhel7-haswell/gcc-9.2.0/hdf5-1.10.6-43s2mlvjr37qtqxybh3jvt7ang6c4d3q
+ 
+#CALIPER_HOME =/usr/workspace/wsrzd/ramesh/Caliper/Caliper/install
+
+EXTRA_FORT_FLAGS = -qstrict
+
+
+MORE_FLAGS = -DENABLE_MPI_TIMING_BARRIER=1 -DSW4_PINNED_MPI_BUFFERS=1 -DUSE_DIRECT_INVERSE=1 
+#-I ${LAPACK_INC}
+MORE_LINK_FLAGS = -L /soft/compilers/intel-2019/compilers_and_libraries/linux/mkl/lib/intel64 -L/soft/compilers/intel-2019/compilers_and_libraries/linux/lib/intel64 -limf -lintlc -lsvml -lm -ldl -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lifcore 
+
+ifeq ($(umpire),yes)
+MORE_FLAGS+= -DSW4_USE_UMPIRE=1 -I $(UMPIRE_HOME)/include
+MORE_LINK_FLAGS+=  -L$(UMPIRE_HOME)/lib -lumpire
+endif 
+
+ifeq ($(fftw),yes)
+MORE_FLAGS+= -DENABLE_FFTW=1 -I $(FFTW_DIR)/include
+MORE_LINK_FLAGS+=-L $(FFTW_DIR)/lib -Wl,-rpath=$(FFTW_DIR)/lib -lfftw3_mpi -lfftw3
+endif 
+
+ifeq ($(hdf5),yes)
+MORE_FLAGS+= -DUSE_HDF5=1 -I $(HDF5_HOME)/include
+MORE_LINK_FLAGS+= -L $(HDF5_HOME)/lib -Wl,-rpath=$(HDF5_HOME)/lib  -lhdf5 -lz 
+endif 
+
+ifeq ($(spill_warns),yes)
+MORE_FLAGS+=  -Xptxas -v,--warn-on-spills
+endif 
+
+ifeq ($(caliper),yes)
+MORE_FLAGS+= -DENABLE_CALIPER=1 -I$(CALIPER_HOME)/include
+MORE_LINK_FLAGS+= -Wl,-rpath=$(CALIPER_HOME)/lib64 -L $(CALIPER_HOME)/lib64 -lcaliper
+endif 
+
+ifeq ($(proj),yes)
+MORE_FLAGS+= -I$(PROJ_HOME)/include
+#MORE_LINK_FLAGS+=-Wl,-rpath=$(PROJ_HOME)/lib  -L$(PROJ_HOME)/lib -lproj
+MORE_LINK_FLAGS+= -L$(PROJ_HOME)/lib -lproj
+endif 
+
+LINKFLAGS =  -fsycl
+
+EXTRA_CXX_FLAGS = -fsycl -O3 $(MORE_FLAGS) -DDISABLE_PREFETCH -std=c++11 -I$(RAJA_HOME)/include  -DRAJA_USE_SYCL -DSW4_CROUTINES -DRAJA_USE_RESTRICT_PTR -DSYCL_CODE -DENABLE_SYCL -DACCEPT_USE_OF_DEPRECATED_PROJ_API_H $(MORE_FLAGS)
+
+EXTRA_LINK_FLAGS =    -L $(RAJA_HOME)/lib -lRAJA   $(MORE_LINK_FLAGS)

@@ -2,6 +2,7 @@
 #define __FORALLSDECL_H__ 1
 
 #ifdef ENABLE_GPU
+#ifndef ENABLE_SYCL
 template <int N, int M, int L>
 std::map<std::tuple<int, int, int>, std::tuple<dim3, dim3>>
     RangeAT<N, M, L>::map;
@@ -24,7 +25,7 @@ std::map<std::tuple<int, int, int>, std::vector<std::tuple<dim3, dim3>>>
 
 template <int N, int M, int L>
 std::map<std::tuple<int, int, int>, std::ofstream> RangeAT<N, M, L>::files;
-
+#endif
 #endif
 
 #endif

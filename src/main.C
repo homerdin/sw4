@@ -33,7 +33,7 @@
 //#include "mpi.h"
 
 #include <mpi.h>
-#include <omp.h>
+//#include <omp.h>
 
 #include <cstring>
 #include <fstream>
