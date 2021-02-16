@@ -53,6 +53,7 @@ class QU {
     static cl::sycl::queue* qu;
 };
 
+
 void check_mem();
 void global_prefetch();
 enum class Space : unsigned int {

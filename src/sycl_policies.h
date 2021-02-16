@@ -20,33 +20,52 @@
 
 #define SW4_DEVICE_SUCCESS 
 //   SW4_CheckDeviceError(syclStreamSynchronize(0));
-typedef RAJA::sycl_exec<1024> DEFAULT_LOOP1;
-typedef RAJA::sycl_exec<1024, true> DEFAULT_LOOP1_ASYNC;
+typedef RAJA::sycl_exec<256> DEFAULT_LOOP1;
+typedef RAJA::sycl_exec<256, true> DEFAULT_LOOP1_ASYNC;
 using REDUCTION_POLICY = RAJA::sycl_reduce;
 
-typedef RAJA::sycl_exec<1024> PREDFORT_LOOP_POL;
-typedef RAJA::sycl_exec<512, true> PREDFORT_LOOP_POL_ASYNC;
+typedef RAJA::sycl_exec<256> PREDFORT_LOOP_POL;
+typedef RAJA::sycl_exec<256, true> PREDFORT_LOOP_POL_ASYNC;
 
-typedef RAJA::sycl_exec<1024> CORRFORT_LOOP_POL;
-typedef RAJA::sycl_exec<512, true> CORRFORT_LOOP_POL_ASYNC;
+typedef RAJA::sycl_exec<256> CORRFORT_LOOP_POL;
+typedef RAJA::sycl_exec<256, true> CORRFORT_LOOP_POL_ASYNC;
 
-typedef RAJA::sycl_exec<1024> DPDMTFORT_LOOP_POL;
+typedef RAJA::sycl_exec<256> DPDMTFORT_LOOP_POL;
 
 typedef RAJA::sycl_exec<256, true> DPDMTFORT_LOOP_POL_ASYNC;
 
-typedef RAJA::sycl_exec<1024> SARRAY_LOOP_POL1;
+typedef RAJA::sycl_exec<256> SARRAY_LOOP_POL1;
 
-using DEFAULT_LOOP2X = RAJA::KernelPolicy<RAJA::statement::SyclKernel<
-    RAJA::statement::For<1, RAJA::sycl_group_1_loop,
+using DEFAULT_LOOP2X = //RAJA::KernelPolicy<RAJA::statement::SyclKernel<
+    RAJA::KernelPolicy<
+      RAJA::statement::SyclKernel<
+        RAJA::statement::For<1, RAJA::sycl_global_1<4>,      // k
+          RAJA::statement::For<0, RAJA::sycl_global_2<4>,    // j
+            RAJA::statement::Lambda<0>
+          >
+        >
+      >
+    >;
+
+/*RAJA::statement::For<1, RAJA::sycl_group_1_loop,
                          RAJA::statement::For<0, RAJA::sycl_local_1_loop,
                                               RAJA::statement::Lambda<0>>>>>;
-
+*/
 using DEFAULT_LOOP2X_ASYNC =
-    RAJA::KernelPolicy<RAJA::statement::SyclKernel<RAJA::statement::For<
+    RAJA::KernelPolicy<
+      RAJA::statement::SyclKernel<
+        RAJA::statement::For<1, RAJA::sycl_global_1<4>,      // k
+          RAJA::statement::For<0, RAJA::sycl_global_2<4>,    // j
+            RAJA::statement::Lambda<0>
+          >
+        >
+      >
+    >;
+/*RAJA::KernelPolicy<RAJA::statement::SyclKernel<RAJA::statement::For<
         1, RAJA::sycl_group_1_loop,
         RAJA::statement::For<0, RAJA::sycl_local_1_loop,
                              RAJA::statement::Lambda<0>>>>>;
-
+*/
 using DEFAULT_LOOP3 =
     RAJA::KernelPolicy<
       RAJA::statement::SyclKernel<
@@ -82,7 +101,7 @@ using SARRAY_LOOP_POL2 =
       RAJA::statement::SyclKernel<
         RAJA::statement::For<0, RAJA::sycl_global_1<1>,      // k
           RAJA::statement::For<1, RAJA::sycl_global_2<1>,    // j
-            RAJA::statement::For<2, RAJA::sycl_global_3<1024>, // i
+            RAJA::statement::For<2, RAJA::sycl_global_3<256>, // i
               RAJA::statement::For<3, RAJA::seq_exec,
                 RAJA::statement::Lambda<0>
               >
@@ -179,11 +198,21 @@ using ODDIODDJ_EXEC_POL1_ASYNC =
 using ODDIODDJ_EXEC_POL2_ASYNC = RHS4_EXEC_POL_ASYNC;
 
 using EVENIODDJ_EXEC_POL_ASYNC =
-    RAJA::KernelPolicy<RAJA::statement::SyclKernel<RAJA::statement::For<
+    RAJA::KernelPolicy<
+      RAJA::statement::SyclKernel<
+        RAJA::statement::For<1, RAJA::sycl_global_1<4>,      // k
+          RAJA::statement::For<0, RAJA::sycl_global_2<4>,    // j
+            RAJA::statement::Lambda<0>
+          >
+        >
+      >
+    >;
+
+/*RAJA::KernelPolicy<RAJA::statement::SyclKernel<RAJA::statement::For<
         1, RAJA::sycl_group_1_loop,
         RAJA::statement::For<0, RAJA::sycl_local_1_loop,
                              RAJA::statement::Lambda<0>>>>>;
-
+*/
 using EVENIEVENJ_EXEC_POL_ASYNC = EVENIODDJ_EXEC_POL_ASYNC;
 
 using ODDIEVENJ_EXEC_POL1_ASYNC = ICSTRESS_EXEC_POL_ASYNC;
@@ -191,21 +220,44 @@ using ODDIEVENJ_EXEC_POL1_ASYNC = ICSTRESS_EXEC_POL_ASYNC;
 using ODDIEVENJ_EXEC_POL2_ASYNC = RHS4_EXEC_POL_ASYNC;
 
 using XRHS_POL =
-    RAJA::KernelPolicy<RAJA::statement::SyclKernel<RAJA::statement::For<
+     RAJA::KernelPolicy<
+      RAJA::statement::SyclKernel<
+        RAJA::statement::For<0, RAJA::sycl_global_1<4>,      // k
+          RAJA::statement::For<1, RAJA::sycl_global_2<4>,    // j
+            RAJA::statement::For<2, RAJA::sycl_global_3<16>, // i
+              RAJA::statement::Lambda<0>
+            >
+          >
+        >
+      >
+    >;
+/*RAJA::KernelPolicy<RAJA::statement::SyclKernel<RAJA::statement::For<
         0, RAJA::sycl_group_1_direct,
         RAJA::statement::For<
             1, RAJA::sycl_group_2_direct,
             RAJA::statement::For<2, RAJA::sycl_group_3_direct,
                                  RAJA::statement::Lambda<0>>>>>>;
-
+*/
 using XRHS_POL_ASYNC =
-    RAJA::KernelPolicy<RAJA::statement::SyclKernelAsync<RAJA::statement::For<
+    RAJA::KernelPolicy<
+      RAJA::statement::SyclKernel<
+        RAJA::statement::For<0, RAJA::sycl_global_1<4>,      // k
+          RAJA::statement::For<1, RAJA::sycl_global_2<4>,    // j
+            RAJA::statement::For<2, RAJA::sycl_global_3<16>, // i
+              RAJA::statement::Lambda<0>
+            >
+          >
+        >
+      >
+    >;
+
+/*RAJA::KernelPolicy<RAJA::statement::SyclKernelAsync<RAJA::statement::For<
         0, RAJA::sycl_group_1_loop,
         RAJA::statement::For<
             1, RAJA::sycl_group_2_loop,
             RAJA::statement::For<2, RAJA::sycl_local_1_loop,
                                  RAJA::statement::Lambda<0>>>>>>;
-
+*/
 using TWILIGHTSG_POL =
     RAJA::KernelPolicy<
       RAJA::statement::SyclKernel<
@@ -250,18 +302,40 @@ using ENERGY4CI_EXEC_POL = RHS4_EXEC_POL;
 
 // Next 4 in solve.C
 using DHI_POL_ASYNC =
-    RAJA::KernelPolicy<RAJA::statement::SyclKernelAsync<RAJA::statement::For<
+    RAJA::KernelPolicy<
+      RAJA::statement::SyclKernel<
+        RAJA::statement::For<0, RAJA::sycl_global_1<4>,      // k
+          RAJA::statement::For<1, RAJA::sycl_global_2<4>,    // j
+            RAJA::statement::For<2, RAJA::sycl_global_3<16>, // i
+              RAJA::statement::Lambda<0>
+            >
+          >
+        >
+      >
+    >;
+/*
+RAJA::KernelPolicy<RAJA::statement::SyclKernelAsync<RAJA::statement::For<
         0, RAJA::sycl_group_1_loop,
         RAJA::statement::For<
             1, RAJA::sycl_group_2_loop,
             RAJA::statement::For<2, RAJA::sycl_local_1_loop,
                                  RAJA::statement::Lambda<0>>>>>>;
-
-using GIG_POL_ASYNC = RAJA::KernelPolicy<RAJA::statement::SyclKernelAsync<
-    RAJA::statement::For<1, RAJA::sycl_group_1_loop,
+*/
+using GIG_POL_ASYNC =// RAJA::KernelPolicy<RAJA::statement::SyclKernelAsync<
+    RAJA::KernelPolicy<
+      RAJA::statement::SyclKernel<
+        RAJA::statement::For<1, RAJA::sycl_global_1<4>,      // k
+          RAJA::statement::For<0, RAJA::sycl_global_2<4>,    // j
+            RAJA::statement::Lambda<0>
+          >
+        >
+      >
+    >;
+/*
+RAJA::statement::For<1, RAJA::sycl_group_1_loop,
                          RAJA::statement::For<0, RAJA::sycl_local_1_loop,
                                               RAJA::statement::Lambda<0>>>>>;
-
+*/
 using AVS_POL_ASYNC =
     RAJA::KernelPolicy<
       RAJA::statement::SyclKernel<
@@ -329,11 +403,21 @@ using INJ_POL_ASYNC =
 
 // TODO: Below
 using INJ_POL2_ASYNC =
-    RAJA::KernelPolicy<RAJA::statement::SyclKernel<RAJA::statement::For<
+    RAJA::KernelPolicy<
+      RAJA::statement::SyclKernel<
+        RAJA::statement::For<1, RAJA::sycl_global_1<4>,      // k
+          RAJA::statement::For<0, RAJA::sycl_global_2<4>,    // j
+            RAJA::statement::Lambda<0>
+          >
+        >
+      >
+    >;
+
+/*RAJA::KernelPolicy<RAJA::statement::SyclKernel<RAJA::statement::For<
         1, RAJA::sycl_group_1_loop,
         RAJA::statement::For<0, RAJA::sycl_local_1_loop,
                              RAJA::statement::Lambda<0>>>>>;
-
+*/
 // CurvilinearInterface2::communicate_array
 
 using CA_POL =
@@ -543,7 +627,17 @@ using CURV_POL_ORG =
 using CURV_POL = DEFAULT_LOOP3;
 // in parallelStuff.C
 using BUFFER_POL = 
-     RAJA::KernelPolicy<
+    RAJA::KernelPolicy<
+      RAJA::statement::SyclKernel<
+        RAJA::statement::For<1, RAJA::sycl_global_1<4>,      // k
+          RAJA::statement::For<0, RAJA::sycl_global_2<4>,    // j
+            RAJA::statement::Lambda<0>
+          >
+        >
+      >
+    >;
+
+/*RAJA::KernelPolicy<
       RAJA::statement::SyclKernel<
         RAJA::statement::For<1, RAJA::sycl_group_1_loop,      // k
           RAJA::statement::For<0, RAJA::sycl_local_1_loop,
@@ -552,7 +646,7 @@ using BUFFER_POL =
         >
       >
     >;
-
+*/
 // in rhs3cuvilinearsgc.C
 using RHS4CU_POL_ASYNC =
      RAJA::KernelPolicy<
@@ -631,5 +725,5 @@ using MPFC_POL_ASYNC = DEFAULT_LOOP3;
 
 // IN EW.C
 using FORCE_LOOP_ASYNC = RAJA::sycl_exec<32, true>;
-using FORCETT_LOOP_ASYNC = RAJA::sycl_exec<1024, true>;
+using FORCETT_LOOP_ASYNC = RAJA::sycl_exec<256, true>;
 #endif

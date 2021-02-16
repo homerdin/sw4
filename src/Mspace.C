@@ -15,6 +15,9 @@ struct global_variable_holder_struct global_variables = {0, 0, 0, 0, 0,
                                                          0, 0, 1, 0};
 using namespace std;
 
+
+cl::sycl::queue* QU::qu;
+
 void presetGPUID(int mpi_rank,int local_rank, int local_size) {
 #if defined(ENABLE_GPU_ERROR)
   std::cerr
@@ -221,7 +224,14 @@ void *operator new(std::size_t size, Space loc) throw() {
     }
 #else  // SW4_USE_UMPIRE
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-    auto allocator = rma.getAllocator("UM_pool");
+    //auto allocator = rma.getAllocator("UM_pool");
+    auto allocator = rma.getAllocator("UM");
+
+    cl::sycl::queue q2 = allocator.getAllocationStrategy()->getTraits().queue;
+    std::cout << "Trait Q =  "
+              << q2.get_device().get_info<cl::sycl::info::device::name>()
+              << std::endl;
+
     ptr = static_cast<void *>(allocator.allocate(size));
 #if defined(ENABLE_CUDA)
     SW4_CheckDeviceError(cudaMemAdvise(
@@ -255,7 +265,8 @@ void *operator new(std::size_t size, Space loc) throw() {
   } else if (loc == Space::Managed_temps) {
 #ifdef SW4_USE_UMPIRE
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-    auto allocator = rma.getAllocator("UM_pool_temps");
+    //auto allocator = rma.getAllocator("UM_pool_temps");
+    auto allocator = rma.getAllocator("UM");
     void *ptr = static_cast<void *>(allocator.allocate(size));
     // SW4_CheckDeviceError(cudaMemAdvise(ptr,size,cudaMemAdviseSetPreferredLocation,0));
     // std::cout<<"PTR 1 "<<ptr<<"\n";
@@ -325,7 +336,19 @@ void *operator new[](std::size_t size, Space loc) throw() {
     }
 #else
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-    auto allocator = rma.getAllocator("UM_pool");
+    for (auto & s : rma.getAllocatorNames()) {
+      std::cout << "Allocator " << s << std::endl;
+    }
+
+//    auto allocator = rma.getAllocator("UM_pool");
+    auto allocator = rma.getAllocator("UM");
+    std::cout << "Size = " << size << std::endl;
+    cl::sycl::queue q2 = allocator.getAllocationStrategy()->getTraits().queue;
+    std::cout << "UM_pool Trait Q =  "
+              << q2.get_device().get_info<cl::sycl::info::device::name>()
+              << std::endl;
+    std::cout << "HWM = " << allocator.getHighWatermark() << std::endl;
+
     ptr = static_cast<void *>(allocator.allocate(size));
 #if defined(ENABLE_CUDA)
     SW4_CheckDeviceError(cudaMemAdvise(
@@ -358,7 +381,15 @@ void *operator new[](std::size_t size, Space loc) throw() {
   } else if (loc == Space::Managed_temps) {
 #if defined(SW4_USE_UMPIRE)
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-    auto allocator = rma.getAllocator("UM_pool_temps");
+//    auto allocator = rma.getAllocator("UM_pool_temps");
+    auto allocator = rma.getAllocator("UM");
+
+    cl::sycl::queue q2 = allocator.getAllocationStrategy()->getTraits().queue;
+    std::cout << "BRIAN Trait Q =  "
+              << q2.get_device().get_info<cl::sycl::info::device::name>()
+              << std::endl;
+
+
     void *ptr = static_cast<void *>(allocator.allocate(size));
     // SW4_CheckDeviceError(cudaMemAdvise(ptr,size,cudaMemAdviseSetPreferredLocation,0));
     // std::cout<<"PTR 1 "<<ptr<<"\n";
@@ -417,7 +448,15 @@ void operator delete(void *ptr, Space loc) throw() {
     SW4_CheckDeviceError(SW4_FREE_MANAGED(ptr));
 #else
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-    auto allocator = rma.getAllocator("UM_pool");
+//    auto allocator = rma.getAllocator("UM_pool");
+    auto allocator = rma.getAllocator("UM");
+
+    cl::sycl::queue q2 = allocator.getAllocationStrategy()->getTraits().queue;
+    std::cout << "Trait Q =  "
+              << q2.get_device().get_info<cl::sycl::info::device::name>()
+              << std::endl;
+
+
     allocator.deallocate(ptr);
 #endif
   } else if (loc == Space::Device) {
@@ -435,7 +474,8 @@ void operator delete(void *ptr, Space loc) throw() {
   } else if (loc == Space::Managed_temps) {
 #if defined(SW4_USE_UMPIRE)
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-    auto allocator = rma.getAllocator("UM_pool_temps");
+    //auto allocator = rma.getAllocator("UM_pool_temps");
+    auto allocator = rma.getAllocator("UM");
     allocator.deallocate(ptr);
 #else
     std::cerr << "Memory location Managed_temps not defined\n";
@@ -479,7 +519,8 @@ void operator delete[](void *ptr, Space loc) throw() {
     }
 #else
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-    auto allocator = rma.getAllocator("UM_pool");
+   // auto allocator = rma.getAllocator("UM_pool");
+    auto allocator = rma.getAllocator("UM");
     allocator.deallocate(ptr);
 #endif
   } else if (loc == Space::Device) {
@@ -499,7 +540,8 @@ void operator delete[](void *ptr, Space loc) throw() {
   } else if (loc == Space::Managed_temps) {
 #ifdef SW4_USE_UMPIRE
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-    auto allocator = rma.getAllocator("UM_pool_temps");
+    //auto allocator = rma.getAllocator("UM_pool_temps");
+    auto allocator = rma.getAllocator("UM");
     allocator.deallocate(ptr);
 #else
     SW4_CheckDeviceError(SW4_FREE_MANAGED(ptr));
@@ -666,7 +708,8 @@ void *Managed::operator new(size_t len) {
 #if defined(SW4_USE_UMPIRE)
   // ptr=SW4_NEW(Space::Managed,char[len]);
   umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-  auto allocator = rma.getAllocator("UM_object_pool");
+  //auto allocator = rma.getAllocator("UM_object_pool");
+  auto allocator = rma.getAllocator("UM");
   ptr = static_cast<void *>(allocator.allocate(len));
 #else
   SW4_CheckDeviceError(SW4_MALLOC_MANAGED(&ptr, len));
@@ -681,7 +724,8 @@ void *Managed::operator new[](size_t len) {
   hwm = std::max(hwm, ocount);
 #if defined(SW4_USE_UMPIRE)
   umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-  auto allocator = rma.getAllocator("UM_object_pool");
+//  auto allocator = rma.getAllocator("UM_object_pool");
+  auto allocator = rma.getAllocator("UM");
   ptr = static_cast<void *>(allocator.allocate(len));
   // ptr=SW4_NEW(Space::Managed,char[len]);
 #else
@@ -701,7 +745,8 @@ void Managed::operator delete(void *ptr) {
   // WARNING DELETES ARE NOOPS. WORKAROUND FOR SUPER SLOW DEALLOCS IN UMPIRE
   return;
   umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-  auto allocator = rma.getAllocator("UM_object_pool");
+  //auto allocator = rma.getAllocator("UM_object_pool");
+  auto allocator = rma.getAllocator("UM");
   // mem_total+=1;
   allocator.deallocate(ptr);
   // std::cout<<"DTOR 1 "<<mem_total<<"\n";
@@ -718,7 +763,8 @@ void Managed::operator delete[](void *ptr) {
   // WARNING DELETES ARE NOOPS. WORAROUND FOR SUPER SLOW DEALLOCS IN UMPIRE
   return;
   umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-  auto allocator = rma.getAllocator("UM_object_pool");
+  //auto allocator = rma.getAllocator("UM_object_pool");
+  auto allocator = rma.getAllocator("UM");
   allocator.deallocate(ptr);
   // mem_total+=1;
   // std::cout<<"DTOR 2 "<<mem_total<<"\n";

@@ -3909,7 +3909,6 @@ void EW::allocateCartesianSolverArrays(float_sw4 a_global_zmax) {
   {
     mOmegaVE.resize(m_number_mechanisms);  // global relaxation frequencies (1
                                            // per mechanism)
-
     // muVE and lambdaVE are vectors of vectors
     for (int g = 0; g < mNumberOfGrids; g++) {
       mMuVE[g] = new Sarray[m_number_mechanisms];
@@ -3918,7 +3917,9 @@ void EW::allocateCartesianSolverArrays(float_sw4 a_global_zmax) {
   }
 
   // SView array used in enforceBCfreeAtt2
+//  std::cout << "BRIAN" << SView[m_number_mechanisms] << std::endl;
   viewArrayActual = SW4_NEW(Space::Managed, SView[m_number_mechanisms * 3]);
+  std::cout << "BRIAN AFTER\n";
   m_iStart.resize(mNumberOfGrids);
   m_iEnd.resize(mNumberOfGrids);
   m_jStart.resize(mNumberOfGrids);

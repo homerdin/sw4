@@ -123,6 +123,8 @@ int main(int argc, char **argv) {
 
 #ifdef ENABLE_HIP
   auto pref_allocator = allocator;
+#elif defined (ENABLE_SYCL)
+  auto pref_allocator = allocator;
 #else
   auto pref_allocator = rma.makeAllocator<umpire::strategy::AllocationAdvisor>(
       "preferred_location_device", allocator, "PREFERRED_LOCATION",
