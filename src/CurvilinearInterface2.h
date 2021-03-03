@@ -61,6 +61,9 @@ class CurvilinearInterface2 {
 #if defined(ENABLE_CUDA)
   float_sw4 *m_sbop, *m_acof, *m_bop, *m_bope, *m_ghcof;
   float_sw4 *m_acof_no_gp, *m_ghcof_no_gp, *m_sbop_no_gp;
+#elif defined(ENABLE_SYCL)
+  float_sw4 *m_sbop, *m_acof, *m_bop, *m_bope, *m_ghcof;
+  float_sw4 *m_acof_no_gp, *m_ghcof_no_gp, *m_sbop_no_gp;
 #else
   float_sw4 m_acof[384], m_bope[48], m_ghcof[6], m_acof_no_gp[384],
       m_ghcof_no_gp[6];

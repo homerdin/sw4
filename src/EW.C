@@ -625,6 +625,7 @@ EW::EW(const string& fileName, vector<vector<Source*>>& a_GlobalSources,
   MPI_Comm_size(MPI_COMM_WORLD, &m_nProcs);
 
   QU::qu = new cl::sycl::queue();
+  std::cerr << "Setting RAJA queue"; 
   RAJA::sycl::detail::setQueue(QU::qu);
 
   if (sizeof(float_sw4) == 4)

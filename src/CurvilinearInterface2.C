@@ -68,6 +68,27 @@ CurvilinearInterface2::CurvilinearInterface2(int a_gc, EW* a_ew) {
   PTR_PUSH(Space::Managed, m_sbop_no_gp, 6 * sizeof(float_sw4));
 #endif
 
+#if defined(ENABLE_SYCL)
+  float_sw4* tmpa =
+      SW4_NEW(Space::Managed, float_sw4[6 + 384 + 24 + 48 + 6 + 384 + 6 + 6]);
+  m_sbop = tmpa;  // PTR_PUSH(Space::Managed,m_sbop);
+  m_acof = m_sbop + 6;
+  PTR_PUSH(Space::Managed, m_acof, 384 * sizeof(float_sw4));
+  m_bop = m_acof + 384;
+  PTR_PUSH(Space::Managed, m_bop, 24 * sizeof(float_sw4));
+  m_bope = m_bop + 24;
+  PTR_PUSH(Space::Managed, m_bope, 48 * sizeof(float_sw4));
+  m_ghcof = m_bope + 48;
+  PTR_PUSH(Space::Managed, m_ghcof, 6 * sizeof(float_sw4));
+
+  m_acof_no_gp = m_ghcof + 6;
+  PTR_PUSH(Space::Managed, m_acof_no_gp, 384 * sizeof(float_sw4));
+  m_ghcof_no_gp = m_acof_no_gp + 384;
+  PTR_PUSH(Space::Managed, m_ghcof_no_gp, 6 * sizeof(float_sw4));
+  m_sbop_no_gp = m_ghcof_no_gp + 6;
+  PTR_PUSH(Space::Managed, m_sbop_no_gp, 6 * sizeof(float_sw4));
+#endif
+
   a_ew->GetStencilCoefficients(m_acof, m_ghcof, m_bop, m_bope, m_sbop);
   bndryOpNoGhostc(m_acof_no_gp, m_ghcof_no_gp, m_sbop_no_gp);
   for (int s = 0; s < 4; s++) m_isbndry[s] = true;
@@ -81,6 +102,10 @@ CurvilinearInterface2::~CurvilinearInterface2() {
 #if defined(ENABLE_CUDA)
   ::operator delete[](m_sbop, Space::Managed);
 #endif
+#if defined(ENABLE_SYCL)
+  ::operator delete[](m_sbop, Space::Managed);
+#endif
+
   ::operator delete[](m_strx_c, Space::Managed);
   ::operator delete[](m_stry_c, Space::Managed);
   ::operator delete[](m_strx_f, Space::Managed);

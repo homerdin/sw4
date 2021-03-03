@@ -48,10 +48,11 @@ void prefetch_to_device(const float_sw4 *ptr);
 #define PROFILER_STOP
 #endif
 
-class QU {
+/*class QU {
   public:
     static cl::sycl::queue* qu;
-};
+//    static umpire::Allocator* allocator;
+};*/
 
 
 void check_mem();

@@ -110,6 +110,8 @@ int main(int argc, char **argv) {
   auto allocator = rma.getAllocator("DEVICE::"+std::to_string(myRank));
 #else
   auto allocator = rma.getAllocator("UM");
+//  std::cerr << "Setting QU::allocator, ptr = " << &allocator << "\n";
+//  QU::allocator = &allocator;
 #endif
   // auto device_allocator = rma.getAllocator("DEVICE");
 #ifdef ENABLE_HIP
@@ -131,9 +133,10 @@ int main(int argc, char **argv) {
       global_variables.device);
 #endif
 
-  auto pooled_allocator =
-      rma.makeAllocator<umpire::strategy::DynamicPool, true>(
-          string("UM_pool"), pref_allocator, pool_size);
+  auto pooled_allocator = allocator;
+//      rma.makeAllocator<umpire::strategy::DynamicPool, true>(
+//          string("UM_pool"), pref_allocator, pool_size);
+  //        string("UM"), pref_allocator, pool_size);
 
   const size_t pool_size_small = static_cast<size_t>(250) * 1024 * 1024;
 
@@ -142,18 +145,18 @@ int main(int argc, char **argv) {
   // if (global_variables.num_devices==1){
 
   // auto pooled_allocator_small =static_cast<size_t>(250)*1024*1024;
-  auto pooled_allocator_small =
-      rma.makeAllocator<umpire::strategy::DynamicPool, true>(
-          string("UM_pool_temps"), pref_allocator, pool_size_small);
+  auto pooled_allocator_small = pooled_allocator;
+//      rma.makeAllocator<umpire::strategy::DynamicPool, true>(
+          //string("UM_pool_temps"), pref_allocator, pool_size_small);
 
   const size_t object_pool_size = static_cast<size_t>(500) * 1024 * 1024;
 
   // rma.makeAllocator<umpire::strategy::MonotonicAllocationStrategy,false>(string("UM_object_pool"),
   //					   object_pool_size,allocator);
 
-  auto pooled_allocator_objects =
-      rma.makeAllocator<umpire::strategy::DynamicPool, false>(
-          string("UM_object_pool"), allocator, object_pool_size);
+  auto pooled_allocator_objects = pooled_allocator;
+  //      rma.makeAllocator<umpire::strategy::DynamicPool, false>(
+          //string("UM_object_pool"), allocator, object_pool_size);
 
 #ifdef SW4_MASS_PREFETCH
   std::cout << "Mass prefetch operational\n";

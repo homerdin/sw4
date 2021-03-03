@@ -2,39 +2,63 @@
 #define __SYCL_POLICIES_H__
 #include "RAJA/RAJA.hpp"
 
+#include "Mspace.h"
+#include "sycl_mem.h"
+/*class QU {
+  public:
+    static cl::sycl::queue* qu;
+//    static umpire::Allocator* allocator;
+};*/
+
+//cl::sycl::queue* QU::qu;
+/*
+bool syclMallocShared(void* addr, std::size_t size) {
+  addr = cl::sycl::malloc_shared( size, *QU::qu);
+  return true;
+}
+
+bool syclMallocDevice(void* addr, std::size_t size) {
+  addr = cl::sycl::malloc_device( size, *QU::qu);
+  return true;
+}
+
+bool syclMallocHost(void* addr, std::size_t size) {
+  addr = cl::sycl::malloc_host( size, *QU::qu);
+  return true;
+}
+*/
 #define SW4_FORCEINLINE // always_inline
-#define SYNC_DEVICE //SW4_CheckDeviceError(syclDeviceSynchronize())
+#define SYNC_DEVICE (*QU::qu).wait(); //SW4_CheckDeviceError(syclDeviceSynchronize())
 #define SYNC_STREAM //SW4_CheckDeviceError(syclStreamSynchronize(0))
 #define SW4_PEEK //SW4_CheckDeviceError(syclPeekAtLastError());
 
 #define RAJA_HOST_DEVICE SYCL_EXTERNAL
 
-#define SW4_MALLOC_MANAGED(addr, size) (*addr = cl::sycl::malloc_shared( size, *QU::qu));
-#define SW4_MALLOC_DEVICE(addr, size) (*addr = cl::sycl::malloc_device(size, *QU::qu));
-#define SW4_MALLOC_PINNED(addr, size) \
-/  (*addr = cl::sycl::malloc_host(size, *QU::qu));
+#define SW4_MALLOC_MANAGED(addr, size) (syclMallocShared(addr, size))
+#define SW4_MALLOC_DEVICE(addr, size) (syclMallocDevice(addr, size))
+#define SW4_MALLOC_PINNED(addr, size) (syclMallocHost(addr, size))
 
 #define SW4_FREE_MANAGED(addr) (sycl::free(addr, *QU::qu));
 #define SW4_FREE_DEVICE(addr) (sycl::free(addr, *QU::qu));
 #define SW4_FREE_PINNED(addr) (sycl::free(addr, *QU::qu));
 
-#define SW4_DEVICE_SUCCESS 
+#define SW4_DEVICE_SUCCESS true 
 //   SW4_CheckDeviceError(syclStreamSynchronize(0));
-typedef RAJA::sycl_exec<256> DEFAULT_LOOP1;
-typedef RAJA::sycl_exec<256, true> DEFAULT_LOOP1_ASYNC;
+typedef RAJA::sycl_exec<256, false> DEFAULT_LOOP1;
+typedef RAJA::sycl_exec<256, false> DEFAULT_LOOP1_ASYNC;
 using REDUCTION_POLICY = RAJA::sycl_reduce;
 
-typedef RAJA::sycl_exec<256> PREDFORT_LOOP_POL;
-typedef RAJA::sycl_exec<256, true> PREDFORT_LOOP_POL_ASYNC;
+typedef RAJA::sycl_exec<256, false> PREDFORT_LOOP_POL;
+typedef RAJA::sycl_exec<256, false> PREDFORT_LOOP_POL_ASYNC;
 
-typedef RAJA::sycl_exec<256> CORRFORT_LOOP_POL;
-typedef RAJA::sycl_exec<256, true> CORRFORT_LOOP_POL_ASYNC;
+typedef RAJA::sycl_exec<256, false> CORRFORT_LOOP_POL;
+typedef RAJA::sycl_exec<256, false> CORRFORT_LOOP_POL_ASYNC;
 
-typedef RAJA::sycl_exec<256> DPDMTFORT_LOOP_POL;
+typedef RAJA::sycl_exec<256, false> DPDMTFORT_LOOP_POL;
 
-typedef RAJA::sycl_exec<256, true> DPDMTFORT_LOOP_POL_ASYNC;
+typedef RAJA::sycl_exec<256, false> DPDMTFORT_LOOP_POL_ASYNC;
 
-typedef RAJA::sycl_exec<256> SARRAY_LOOP_POL1;
+typedef RAJA::sycl_exec<256, false> SARRAY_LOOP_POL1;
 
 using DEFAULT_LOOP2X = //RAJA::KernelPolicy<RAJA::statement::SyclKernel<
     RAJA::KernelPolicy<
@@ -724,6 +748,6 @@ using AFCC_POL_ASYNC =
 using MPFC_POL_ASYNC = DEFAULT_LOOP3;
 
 // IN EW.C
-using FORCE_LOOP_ASYNC = RAJA::sycl_exec<32, true>;
-using FORCETT_LOOP_ASYNC = RAJA::sycl_exec<256, true>;
+using FORCE_LOOP_ASYNC = RAJA::sycl_exec<32, false>;
+using FORCETT_LOOP_ASYNC = RAJA::sycl_exec<256, false>;
 #endif
