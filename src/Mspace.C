@@ -85,6 +85,9 @@ void presetGPUID(int mpi_rank,int local_rank, int local_size) {
   }
 #endif  // ENABLE_HIP
 
+#ifdef ENABLE_SYCL
+
+#endif
   // printf("Device set to %d \n", global_variables.device);
 #endif  // ENABLE_GPU
 }
@@ -223,6 +226,7 @@ void *operator new(std::size_t size, Space loc) throw() {
       return ptr;
     }
 #else  // SW4_USE_UMPIRE
+#ifndef SYCL_WA
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
     auto allocator = rma.getAllocator("UM_pool");
     //auto allocator = rma.getAllocator("UM");
@@ -235,11 +239,15 @@ void *operator new(std::size_t size, Space loc) throw() {
     //          << std::endl;
 
     ptr = static_cast<void *>(allocator.allocate(size));
+#else
+
+    ptr = cl::sycl::malloc_shared(size, *QU::qu);
+#endif
 #if defined(ENABLE_CUDA)
     SW4_CheckDeviceError(cudaMemAdvise(
         ptr, size, cudaMemAdviseSetPreferredLocation, global_variables.device));
 #endif
-    // std::cout<<"PTR 1 "<<ptr<<"\n";
+     std::cout<<"PTR 1 "<<ptr<<"\n";
     // SW4_CheckDeviceError(cudaMemset(ptr,0,size));
     return ptr;
 #endif  // SW4_USE_UMPIRE
@@ -266,6 +274,7 @@ void *operator new(std::size_t size, Space loc) throw() {
     return ptr;
   } else if (loc == Space::Managed_temps) {
 #ifdef SW4_USE_UMPIRE
+#ifndef SYCL_WA
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
     //auto allocator = rma.getAllocator("UM_pool_temps");
     auto allocator = rma.getAllocator("UM");
@@ -274,6 +283,10 @@ void *operator new(std::size_t size, Space loc) throw() {
     // SW4_CheckDeviceError(cudaMemAdvise(ptr,size,cudaMemAdviseSetPreferredLocation,0));
     // std::cout<<"PTR 1 "<<ptr<<"\n";
     // SW4_CheckDeviceError(cudaMemset(ptr,0,size));
+#else
+    auto ptr = cl::sycl::malloc_shared(size, *QU::qu);
+    std::cerr << "Allocated (should be UM_pool_temps" << std::endl;
+#endif
     return ptr;
 #else
     // std::cerr << "Managed_temp location no defined\n";
@@ -338,13 +351,14 @@ void *operator new[](std::size_t size, Space loc) throw() {
       return ptr;
     }
 #else
+#ifndef SYCL_WA
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
 /*    for (auto & s : rma.getAllocatorNames()) {
       std::cout << "Allocator " << s << std::endl;
     }*/
 
 //    auto allocator = rma.getAllocator("UM_pool");
-//    auto allocator = rma.getAllocator("UM");
+    auto allocator = rma.getAllocator("UM");
 //    auto allocator = QU::allocator;
 //    std::cout << "Size = " << size << std::endl;
 //    allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
@@ -354,15 +368,17 @@ void *operator new[](std::size_t size, Space loc) throw() {
     std::cerr << "Setting RAJA 2 sycl queue, ptr = " << &q2 << "\n";
     RAJA::sycl::detail::setQueue(&q2);
 */
-    ptr = cl::sycl::malloc_shared(size, *QU::qu);
     
     //    std::cout << "UM_pool Trait Q =  "
   //            << q2.get_device().get_info<cl::sycl::info::device::name>()
     //          << std::endl;
 //    std::cout << "HWM = " << allocator.getHighWatermark() << std::endl;
-/* BRIAN still testing sycl 
+
     ptr = static_cast<void *>(allocator->allocate(size));
-    */
+#else
+
+    ptr = cl::sycl::malloc_shared(size, *QU::qu);
+#endif
 #if defined(ENABLE_CUDA)
     SW4_CheckDeviceError(cudaMemAdvise(
         ptr, size, cudaMemAdviseSetPreferredLocation, global_variables.device));
@@ -393,9 +409,10 @@ void *operator new[](std::size_t size, Space loc) throw() {
     return ptr;
   } else if (loc == Space::Managed_temps) {
 #if defined(SW4_USE_UMPIRE)
+#ifndef SYCL_WA
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-//    auto allocator = rma.getAllocator("UM_pool_temps");
-    auto allocator = rma.getAllocator("UM");
+    auto allocator = rma.getAllocator("UM_pool_temps");
+//    auto allocator = rma.getAllocator("UM");
 
     allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
     cl::sycl::queue q2 = allocator.getAllocationStrategy()->getTraits().queue;
@@ -403,10 +420,11 @@ void *operator new[](std::size_t size, Space loc) throw() {
 //    RAJA::sycl::detail::setQueue(&q2);
     //    std::cout << "BRIAN Trait Q =  "
   //            << q2.get_device().get_info<cl::sycl::info::device::name>()
-    //          << std::endl;
-
+     void *ptr = static_cast<void *>(allocator.allocate(size));
+ //          << std::endl;
+#else
     auto ptr = cl::sycl::malloc_shared(size, *QU::qu);
-
+#endif
 //    void *ptr = static_cast<void *>(allocator.allocate(size));
     // SW4_CheckDeviceError(cudaMemAdvise(ptr,size,cudaMemAdviseSetPreferredLocation,0));
     // std::cout<<"PTR 1 "<<ptr<<"\n";
@@ -464,18 +482,22 @@ void operator delete(void *ptr, Space loc) throw() {
     }
     SW4_CheckDeviceError(SW4_FREE_MANAGED(ptr));
 #else
+#ifndef SYCL_WA
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-//    auto allocator = rma.getAllocator("UM_pool");
-    auto allocator = rma.getAllocator("UM");
+    auto allocator = rma.getAllocator("UM_pool");
+//    auto allocator = rma.getAllocator("UM");
 
-    allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
-    cl::sycl::queue q2 = allocator.getAllocationStrategy()->getTraits().queue;
+//    allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
+//    cl::sycl::queue q2 = allocator.getAllocationStrategy()->getTraits().queue;
 //    std::cout << "Trait Q =  "
   //            << q2.get_device().get_info<cl::sycl::info::device::name>()
     //          << std::endl;
-
+   allocator.deallocate(ptr); 
+#else
   cl::sycl::free(ptr, *QU::qu);
+#endif
 // BRIAN    allocator.deallocate(ptr);    
+
 #endif
   } else if (loc == Space::Device) {
     pattr_t *ss = patpush(ptr, NULL);
@@ -491,12 +513,15 @@ void operator delete(void *ptr, Space loc) throw() {
     ::operator delete(ptr);
   } else if (loc == Space::Managed_temps) {
 #if defined(SW4_USE_UMPIRE)
+#ifndef SYCL_WA
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
     //auto allocator = rma.getAllocator("UM_pool_temps");
     auto allocator = rma.getAllocator("UM");
     allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
-  //  allocator.deallocate(ptr);
+    allocator.deallocate(ptr);
+#else
   cl::sycl::free(ptr, *QU::qu);
+#endif
 #else
     std::cerr << "Memory location Managed_temps not defined\n";
 #endif
@@ -538,12 +563,15 @@ void operator delete[](void *ptr, Space loc) throw() {
       }
     }
 #else
+#ifndef SYCL_WA
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
    // auto allocator = rma.getAllocator("UM_pool");
     auto allocator = rma.getAllocator("UM");
     allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
-  //  allocator.deallocate(ptr);
+    allocator.deallocate(ptr);
+#else
   cl::sycl::free(ptr, *QU::qu);
+#endif
 #endif
   } else if (loc == Space::Device) {
     // std::cout<<"Managed [] delete\n";
@@ -561,12 +589,15 @@ void operator delete[](void *ptr, Space loc) throw() {
     ::operator delete(ptr);
   } else if (loc == Space::Managed_temps) {
 #ifdef SW4_USE_UMPIRE
+#ifndef SYCL_WA
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
     //auto allocator = rma.getAllocator("UM_pool_temps");
     auto allocator = rma.getAllocator("UM");
     allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
-  //  allocator.deallocate(ptr);
+    allocator.deallocate(ptr);
+#else
   cl::sycl::free(ptr, *QU::qu);
+#endif
 #else
     SW4_CheckDeviceError(SW4_FREE_MANAGED(ptr));
 #endif

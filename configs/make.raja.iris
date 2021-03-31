@@ -1,7 +1,8 @@
-FC = mpif90
+FC = mpiifx
 LINKER = mpiclang++
 CXX = mpiclang++
 
+debug = yes
 proj = yes
 ckernel=yes 
 openmp=no
@@ -26,9 +27,10 @@ HDF5_HOME = /gpfs/jlse-fs0/users/bhomerding/spack/opt/spack/linux-rhel7-haswell/
 
 MORE_FLAGS = -DENABLE_MPI_TIMING_BARRIER=1 -DSW4_PINNED_MPI_BUFFERS=1 -DUSE_DIRECT_INVERSE=1 
 #-I ${LAPACK_INC}
-MORE_LINK_FLAGS = -L /soft/compilers/intel-2019/compilers_and_libraries/linux/mkl/lib/intel64 -L/soft/compilers/intel-2019/compilers_and_libraries/linux/lib/intel64 -limf -lintlc -lsvml -lm -ldl -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lifcore -lgfortran 
+#MORE_LINK_FLAGS = -L /soft/compilers/intel-2019/compilers_and_libraries/linux/mkl/lib/intel64 -L/soft/compilers/intel-2019/compilers_and_libraries/linux/lib/intel64 -limf -lintlc -lsvml -lm -ldl -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lifcore 
+#MORE_LINK_FLAGS = -L/soft/restricted/CNDA/sdk/2020.12.15.1-ats/oneapi/compiler/20210130/linux/compiler/lib/intel64_lin -lirc -mkl -fsycl -Wl,--defsym,main=MAIN__ -fsycl-device-lib=all -lifcore
 
-
+MORE_LINK_FLAGS = -limf -lsvml -L /soft/compilers/intel-2019/compilers_and_libraries/linux/mkl/lib/intel64 -lmkl_intel_lp64 -lmkl_core -lmkl_sequential  -L/soft/restricted/CNDA/sdk/2020.12.15.1-ats/oneapi/compiler/20210130/linux/compiler/lib/intel64_lin -lirc -mkl -fsycl  -fsycl-device-lib=all -lifcore
 
 
 ifeq ($(umpire),yes)
@@ -63,6 +65,6 @@ endif
 
 LINKFLAGS =  -fsycl
 
-EXTRA_CXX_FLAGS = -fsycl -O3 -g $(MORE_FLAGS) -DDISABLE_PREFETCH -std=c++11 -I$(RAJA_HOME)/include  -DRAJA_USE_SYCL -DSW4_CROUTINES -DRAJA_USE_RESTRICT_PTR -DSYCL_CODE -DENABLE_SYCL -DACCEPT_USE_OF_DEPRECATED_PROJ_API_H $(MORE_FLAGS) -fsycl-unnamed-lambda
+EXTRA_CXX_FLAGS = -fsycl -O1 -g $(MORE_FLAGS) -DSYCL_WA=1 -DDISABLE_PREFETCH -std=c++11 -I$(RAJA_HOME)/include  -DRAJA_USE_SYCL -DSW4_CROUTINES -DRAJA_USE_RESTRICT_PTR -DSYCL_CODE -DENABLE_SYCL -DACCEPT_USE_OF_DEPRECATED_PROJ_API_H $(MORE_FLAGS) -fsycl-unnamed-lambda
 
 EXTRA_LINK_FLAGS =    -L $(RAJA_HOME)/lib -lRAJA   $(MORE_LINK_FLAGS)

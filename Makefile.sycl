@@ -88,6 +88,12 @@ else
 # object code goes in machine specific directory on LC
       debugdir := debug_sycl
       optdir := optimize_sycl
+    else ifeq ($(findstring arcticus,$(HOSTNAME)),arcticus)
+      include configs/make.raja.iris
+      foundincfile := "configs/make.raja.iris"
+# object code goes in machine specific directory on LC
+      debugdir := debug_sycl_ats
+      optdir := optimize_sycl_ats
 # Cori @ NERSC
     else ifeq ($(findstring cori,$(HOSTNAME)),cori)
       include configs/make.cori
