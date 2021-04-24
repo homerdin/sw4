@@ -15,7 +15,7 @@ caliper= no
 RAJA_HOME = /home/bhomerding/install/raja.11.29.2020
 PROJ_HOME = /home/bhomerding/install/proj-5.2.0
 #PROJ_HOME = /gpfs/jlse-fs0/users/bhomerding/spack/opt/spack/linux-rhel7-haswell/gcc-9.2.0/proj-7.1.0-eyune6nllfydombkzf4ptsg6puosuq33
-UMPIRE_HOME = /home/bhomerding/install/umpire.2021-01-29
+UMPIRE_HOME = /home/bhomerding/install/umpire.2021-04-16
 #CALIPER_HOME = /usr/workspace/wsb/ramesh/Caliper/July2020/Caliper/install
 
 HDF5_HOME = /gpfs/jlse-fs0/users/bhomerding/spack/opt/spack/linux-rhel7-haswell/gcc-9.2.0/hdf5-1.10.6-43s2mlvjr37qtqxybh3jvt7ang6c4d3q
@@ -65,6 +65,10 @@ endif
 
 LINKFLAGS =  -fsycl
 
-EXTRA_CXX_FLAGS = -fsycl -O1 -g $(MORE_FLAGS) -DSYCL_WA=1 -DDISABLE_PREFETCH -std=c++11 -I$(RAJA_HOME)/include  -DRAJA_USE_SYCL -DSW4_CROUTINES -DRAJA_USE_RESTRICT_PTR -DSYCL_CODE -DENABLE_SYCL -DACCEPT_USE_OF_DEPRECATED_PROJ_API_H $(MORE_FLAGS) -fsycl-unnamed-lambda
+#EXTRA_CXX_FLAGS = -fsycl -O1 -g $(MORE_FLAGS) -DSYCL_WA=1 -DDISABLE_PREFETCH -std=c++17 -I$(RAJA_HOME)/include  -DRAJA_USE_SYCL -DSW4_CROUTINES -DRAJA_USE_RESTRICT_PTR -DSYCL_CODE -DENABLE_SYCL -DACCEPT_USE_OF_DEPRECATED_PROJ_API_H $(MORE_FLAGS) -fsycl-unnamed-lambda
+
+
+EXTRA_CXX_FLAGS = -fsycl -O1 -g $(MORE_FLAGS) -DDISABLE_PREFETCH -std=c++17 -I$(RAJA_HOME)/include  -DRAJA_USE_SYCL -DSW4_CROUTINES -DRAJA_USE_RESTRICT_PTR -DSYCL_CODE -DENABLE_SYCL -DACCEPT_USE_OF_DEPRECATED_PROJ_API_H $(MORE_FLAGS) -fsycl-unnamed-lambda
+#EXTRA_CXX_FLAGS = -fsycl -O1 -g $(MORE_FLAGS) -DDISABLE_PREFETCH -std=c++17 -I$(RAJA_HOME)/include  -DRAJA_USE_SYCL -DSW4_CROUTINES -DRAJA_USE_RESTRICT_PTR -DSYCL_CODE -DENABLE_SYCL -DACCEPT_USE_OF_DEPRECATED_PROJ_API_H $(MORE_FLAGS) -fsycl-unnamed-lambda
 
 EXTRA_LINK_FLAGS =    -L $(RAJA_HOME)/lib -lRAJA   $(MORE_LINK_FLAGS)

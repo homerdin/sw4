@@ -333,7 +333,8 @@ void Sarray::define(int nc, int iend, int jend, int kend) {
   m_nj = m_je - m_jb + 1;
   m_nk = m_ke - m_kb + 1;
   if (m_nc * m_ni * m_nj * m_nk > 0)
-    m_data = SW4_NEW(Space::Managed, float_sw4[m_nc * m_ni * m_nj * m_nk]);
+//    m_data = SW4_NEW(Space::Managed, float_sw4[m_nc * m_ni * m_nj * m_nk]);
+    m_data = static_cast<float_sw4*> (cl::sycl::malloc_shared( m_nc * m_ni * m_nj * m_nk * sizeof(float_sw4), *QU::qu));
   else
     m_data = NULL;
   //   m_mpi_datatype_initialized = false;

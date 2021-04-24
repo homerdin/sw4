@@ -42,6 +42,11 @@ void prefetch_to_device(const float_sw4 *ptr);
   CheckError(err, __FILE__, __FUNCTION__, __LINE__)
 #define PROFILER_START SW4_CheckDeviceError(cudaProfilerStart())
 #define PROFILER_STOP SW4_CheckDeviceError(cudaProfilerStop())
+#elif defined(ENABLE_SYCL)
+void prefetch_to_device(const float_sw4 *ptr);
+#define SW4_CheckDeviceError(err)
+#define PROFILER_START
+#define PROFILER_STOP
 #else
 #define SW4_CheckDeviceError(err)
 #define PROFILER_START
@@ -96,7 +101,7 @@ struct global_variable_holder_struct {
 };
 
 extern struct global_variable_holder_struct global_variables;
-#ifdef ENABLE_CUDA
+#if defined(ENABLE_CUDA) || defined(ENABLE_SYCL)
 #define SW4_TRACK_MEMORY_ALLOCATIONS 1
 #endif
 #if defined(SW4_TRACK_MEMORY_ALLOCATIONS)

@@ -228,8 +228,11 @@ void *operator new(std::size_t size, Space loc) throw() {
 #else  // SW4_USE_UMPIRE
 #ifndef SYCL_WA
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
+#ifdef UM_POOL
     auto allocator = rma.getAllocator("UM_pool");
-    //auto allocator = rma.getAllocator("UM");
+#else
+    auto allocator = rma.getAllocator("UM");
+#endif
     //allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
     //cl::sycl::queue q2 = allocator.getAllocationStrategy()->getTraits().queue;
     //std::cerr << "Setting RAJA 1 sycl queue, ptr = " << &q2 << "\n";
@@ -240,7 +243,7 @@ void *operator new(std::size_t size, Space loc) throw() {
 
     ptr = static_cast<void *>(allocator.allocate(size));
 #else
-
+    std::cout << "malloc_shared 1\n";
     ptr = cl::sycl::malloc_shared(size, *QU::qu);
 #endif
 #if defined(ENABLE_CUDA)
@@ -276,16 +279,19 @@ void *operator new(std::size_t size, Space loc) throw() {
 #ifdef SW4_USE_UMPIRE
 #ifndef SYCL_WA
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-    //auto allocator = rma.getAllocator("UM_pool_temps");
+#ifdef UM_POOL
+    auto allocator = rma.getAllocator("UM_pool_temps");
+#else
     auto allocator = rma.getAllocator("UM");
-    allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
+#endif
+    //allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
     void *ptr = static_cast<void *>(allocator.allocate(size));
     // SW4_CheckDeviceError(cudaMemAdvise(ptr,size,cudaMemAdviseSetPreferredLocation,0));
     // std::cout<<"PTR 1 "<<ptr<<"\n";
     // SW4_CheckDeviceError(cudaMemset(ptr,0,size));
 #else
     auto ptr = cl::sycl::malloc_shared(size, *QU::qu);
-    std::cerr << "Allocated (should be UM_pool_temps" << std::endl;
+    std::cerr << "malloc_shared 2" << std::endl;
 #endif
     return ptr;
 #else
@@ -330,7 +336,7 @@ void *operator new[](std::size_t size, Space loc) throw() {
   SW4_MARK_FUNCTION;
 #ifdef ENABLE_GPU
   if (loc == Space::Managed) {
-    // std::cout<<"Managed [] allocation \n";
+    std::cout<<"Managed [] allocation \n";
     if (size == 0) size = 1;  // new has to return an valid pointer for 0 size.
     void *ptr;
 #ifndef SW4_USE_UMPIRE
@@ -356,9 +362,11 @@ void *operator new[](std::size_t size, Space loc) throw() {
 /*    for (auto & s : rma.getAllocatorNames()) {
       std::cout << "Allocator " << s << std::endl;
     }*/
-
-//    auto allocator = rma.getAllocator("UM_pool");
+#ifdef UM_POOL
+    auto allocator = rma.getAllocator("UM_pool");
+#else
     auto allocator = rma.getAllocator("UM");
+#endif
 //    auto allocator = QU::allocator;
 //    std::cout << "Size = " << size << std::endl;
 //    allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
@@ -374,9 +382,9 @@ void *operator new[](std::size_t size, Space loc) throw() {
     //          << std::endl;
 //    std::cout << "HWM = " << allocator.getHighWatermark() << std::endl;
 
-    ptr = static_cast<void *>(allocator->allocate(size));
+    ptr = static_cast<void *>(allocator.allocate(size));
 #else
-
+    std::cout << "malloc_shared 3\n";
     ptr = cl::sycl::malloc_shared(size, *QU::qu);
 #endif
 #if defined(ENABLE_CUDA)
@@ -411,11 +419,14 @@ void *operator new[](std::size_t size, Space loc) throw() {
 #if defined(SW4_USE_UMPIRE)
 #ifndef SYCL_WA
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
+#ifdef UM_POOL
     auto allocator = rma.getAllocator("UM_pool_temps");
-//    auto allocator = rma.getAllocator("UM");
+#else
+    auto allocator = rma.getAllocator("UM");
+#endif
 
-    allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
-    cl::sycl::queue q2 = allocator.getAllocationStrategy()->getTraits().queue;
+//    allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
+//    cl::sycl::queue q2 = allocator.getAllocationStrategy()->getTraits().queue;
 //    std::cerr << "Setting RAJA 3 sycl queue, ptr = " << &q2 << "\n";
 //    RAJA::sycl::detail::setQueue(&q2);
     //    std::cout << "BRIAN Trait Q =  "
@@ -484,9 +495,11 @@ void operator delete(void *ptr, Space loc) throw() {
 #else
 #ifndef SYCL_WA
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
+#ifdef UM_POOL
     auto allocator = rma.getAllocator("UM_pool");
-//    auto allocator = rma.getAllocator("UM");
-
+#else
+    auto allocator = rma.getAllocator("UM");
+#endif
 //    allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
 //    cl::sycl::queue q2 = allocator.getAllocationStrategy()->getTraits().queue;
 //    std::cout << "Trait Q =  "
@@ -515,9 +528,12 @@ void operator delete(void *ptr, Space loc) throw() {
 #if defined(SW4_USE_UMPIRE)
 #ifndef SYCL_WA
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-    //auto allocator = rma.getAllocator("UM_pool_temps");
+#ifdef UM_POOL
+    auto allocator = rma.getAllocator("UM_pool_temps");
+#else
     auto allocator = rma.getAllocator("UM");
-    allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
+#endif
+    //allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
     allocator.deallocate(ptr);
 #else
   cl::sycl::free(ptr, *QU::qu);
@@ -565,9 +581,12 @@ void operator delete[](void *ptr, Space loc) throw() {
 #else
 #ifndef SYCL_WA
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-   // auto allocator = rma.getAllocator("UM_pool");
+#ifdef UM_POOL
+    auto allocator = rma.getAllocator("UM_pool");
+#else
     auto allocator = rma.getAllocator("UM");
-    allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
+#endif
+    //allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
     allocator.deallocate(ptr);
 #else
   cl::sycl::free(ptr, *QU::qu);
@@ -591,9 +610,12 @@ void operator delete[](void *ptr, Space loc) throw() {
 #ifdef SW4_USE_UMPIRE
 #ifndef SYCL_WA
     umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-    //auto allocator = rma.getAllocator("UM_pool_temps");
+#ifdef UM_POOL
+    auto allocator = rma.getAllocator("UM_pool_temps");
+#else
     auto allocator = rma.getAllocator("UM");
-    allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
+#endif
+    //allocator.getAllocationStrategy()->getTraits().queue = *QU::qu;
     allocator.deallocate(ptr);
 #else
   cl::sycl::free(ptr, *QU::qu);
@@ -751,6 +773,26 @@ void CheckError(hipError_t const err, const char *file, char const *const fun,
 }
 #endif  // ENABLE_HIP
 
+#if defined(ENABLE_SYCL)
+
+void prefetch_to_device(const float_sw4 *ptr) {
+#if defined(DISABLE_PREFETCH)
+  return;
+#else
+  if (ptr == NULL) return;
+  pattr_t *ss = patpush((void *)ptr, NULL);
+  if (ss != NULL) {
+    if (ss->size > 0) {
+      SW4_MARK_BEGIN(" prefetch_to_device");
+      QU::qu->prefetch(ptr, ss->size);
+      SW4_CheckDeviceError(cudaMemPrefetchAsync(ptr, ss->size, 0, 0));
+      SW4_MARK_END(" prefetch_to_device");
+    }  // else std::cerr<<"Zero size prefetch \n";
+  } else
+    std::cerr << "NO prefetch due to unknown address\n";
+#endif  // DISABLE_PREFETCH
+}
+#endif
 #if defined(ENABLE_GPU)
 void *Managed::operator new(size_t len) {
   SW4_MARK_FUNCTION;
@@ -763,8 +805,11 @@ void *Managed::operator new(size_t len) {
 #if defined(SW4_USE_UMPIRE)
   // ptr=SW4_NEW(Space::Managed,char[len]);
   umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-  //auto allocator = rma.getAllocator("UM_object_pool");
+#ifdef UM_POOL
+  auto allocator = rma.getAllocator("UM_object_pool");
+#else
   auto allocator = rma.getAllocator("UM");
+#endif
   ptr = static_cast<void *>(allocator.allocate(len));
 #else
   SW4_CheckDeviceError(SW4_MALLOC_MANAGED(&ptr, len));
@@ -800,8 +845,8 @@ void Managed::operator delete(void *ptr) {
   // WARNING DELETES ARE NOOPS. WORKAROUND FOR SUPER SLOW DEALLOCS IN UMPIRE
   return;
   umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-  //auto allocator = rma.getAllocator("UM_object_pool");
-  auto allocator = rma.getAllocator("UM");
+  auto allocator = rma.getAllocator("UM_object_pool");
+  //auto allocator = rma.getAllocator("UM");
   // mem_total+=1;
   allocator.deallocate(ptr);
   // std::cout<<"DTOR 1 "<<mem_total<<"\n";
@@ -818,8 +863,8 @@ void Managed::operator delete[](void *ptr) {
   // WARNING DELETES ARE NOOPS. WORAROUND FOR SUPER SLOW DEALLOCS IN UMPIRE
   return;
   umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
-  //auto allocator = rma.getAllocator("UM_object_pool");
-  auto allocator = rma.getAllocator("UM");
+  auto allocator = rma.getAllocator("UM_object_pool");
+  //auto allocator = rma.getAllocator("UM");
   allocator.deallocate(ptr);
   // mem_total+=1;
   // std::cout<<"DTOR 2 "<<mem_total<<"\n";

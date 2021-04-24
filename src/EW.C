@@ -624,7 +624,15 @@ EW::EW(const string& fileName, vector<vector<Source*>>& a_GlobalSources,
   MPI_Comm_rank(MPI_COMM_WORLD, &m_myRank);
   MPI_Comm_size(MPI_COMM_WORLD, &m_nProcs);
 
+
+#ifndef SYCL_WA
+  umpire::ResourceManager &rma = umpire::ResourceManager::getInstance();
+  auto allocator = rma.getAllocator("UM");
+  QU::qu = allocator.getAllocationStrategy()->getTraits().queue;
+#else
+  //QU::qu = new cl::sycl::queue(cl::sycl::cpu_selector());
   QU::qu = new cl::sycl::queue();
+#endif
   std::cerr << "Setting RAJA queue"; 
   RAJA::sycl::detail::setQueue(QU::qu);
 
@@ -729,7 +737,7 @@ EW::EW(const string& fileName, vector<vector<Source*>>& a_GlobalSources,
     // msgStream.open(fname);
 
 #if defined(ENABLE_GPU)
-  float_sw4* tmpa =
+/*  float_sw4* tmpa =
       SW4_NEW(Space::Managed, float_sw4[6 + 384 + 24 + 48 + 6 + 384 + 6 + 6]);
   m_sbop = tmpa;  // PTR_PUSH(Space::Managed,m_sbop);
   m_acof = m_sbop + 6;
@@ -746,7 +754,31 @@ EW::EW(const string& fileName, vector<vector<Source*>>& a_GlobalSources,
   m_ghcof_no_gp = m_acof_no_gp + 384;
   PTR_PUSH(Space::Managed, m_ghcof_no_gp, 6 * sizeof(float_sw4));
   m_sbop_no_gp = m_ghcof_no_gp + 6;
-  PTR_PUSH(Space::Managed, m_sbop_no_gp, 6 * sizeof(float_sw4));
+  PTR_PUSH(Space::Managed, m_sbop_no_gp, 6 * sizeof(float_sw4));*/
+  std::cerr << "BRIAN SArray: bout to malloc the ptr arith stuff in SArray\n";
+  m_sbop = static_cast<float_sw4*> (cl::sycl::malloc_shared( 6 * sizeof(float_sw4), *QU::qu));
+//  m_sbop = SW4_NEW(Space::Managed, float_sw4[6]);
+//  PTR_PUSH(Space::Managed, m_sbop, 6 * sizeof(float_sw4));
+  m_acof = static_cast<float_sw4*> (cl::sycl::malloc_shared( 384 * sizeof(float_sw4), *QU::qu));
+//  m_acof = SW4_NEW(Space::Managed, float_sw4[384]);
+//  PTR_PUSH(Space::Managed, m_acof, 384 * sizeof(float_sw4));
+  m_bop = static_cast<float_sw4*> (cl::sycl::malloc_shared( 24 * sizeof(float_sw4), *QU::qu));
+//  m_bop = SW4_NEW(Space::Managed, float_sw4[24]);
+//  PTR_PUSH(Space::Managed, m_bop, 24 * sizeof(float_sw4));
+  m_bope = static_cast<float_sw4*> (cl::sycl::malloc_shared( 48 * sizeof(float_sw4), *QU::qu));
+//  m_bope = SW4_NEW(Space::Managed, float_sw4[48]);
+//  PTR_PUSH(Space::Managed, m_bope, 48 * sizeof(float_sw4));
+  m_ghcof = static_cast<float_sw4*> (cl::sycl::malloc_shared( 6 * sizeof(float_sw4), *QU::qu));
+//  m_ghcof = SW4_NEW(Space::Managed, float_sw4[6]);
+//  PTR_PUSH(Space::Managed, m_ghcof, 6 * sizeof(float_sw4));
+
+  m_acof_no_gp = static_cast<float_sw4*> (cl::sycl::malloc_shared( 384 * sizeof(float_sw4), *QU::qu));
+//  m_acof_no_gp = SW4_NEW(Space::Managed, float_sw4[384]);
+//  PTR_PUSH(Space::Managed, m_acof_no_gp, 384 * sizeof(float_sw4));
+  m_ghcof_no_gp = static_cast<float_sw4*> (cl::sycl::malloc_shared( 6 * sizeof(float_sw4), *QU::qu));
+//  m_ghcof_no_gp = SW4_NEW(Space::Managed, float_sw4[6]);
+//  PTR_PUSH(Space::Managed, m_ghcof_no_gp, 6 * sizeof(float_sw4));
+  m_sbop_no_gp = static_cast<float_sw4*> (cl::sycl::malloc_shared( 6 * sizeof(float_sw4), *QU::qu));
 #endif
 }
 

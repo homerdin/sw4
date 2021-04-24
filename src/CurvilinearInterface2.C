@@ -69,6 +69,7 @@ CurvilinearInterface2::CurvilinearInterface2(int a_gc, EW* a_ew) {
 #endif
 
 #if defined(ENABLE_SYCL)
+#if defined(SHARED_PTR_ARITH)
   float_sw4* tmpa =
       SW4_NEW(Space::Managed, float_sw4[6 + 384 + 24 + 48 + 6 + 384 + 6 + 6]);
   m_sbop = tmpa;  // PTR_PUSH(Space::Managed,m_sbop);
@@ -87,6 +88,36 @@ CurvilinearInterface2::CurvilinearInterface2(int a_gc, EW* a_ew) {
   PTR_PUSH(Space::Managed, m_ghcof_no_gp, 6 * sizeof(float_sw4));
   m_sbop_no_gp = m_ghcof_no_gp + 6;
   PTR_PUSH(Space::Managed, m_sbop_no_gp, 6 * sizeof(float_sw4));
+#else
+//  float_sw4* tmpa =
+  //    SW4_NEW(Space::Managed, float_sw4[6 + 384 + 24 + 48 + 6 + 384 + 6 + 6]);
+  std::cerr << "BRIAN : bout to malloc the ptr arith stuff\n";
+  m_sbop = static_cast<float_sw4*> (cl::sycl::malloc_shared( 6 * sizeof(float_sw4), *QU::qu));
+//  m_sbop = SW4_NEW(Space::Managed, float_sw4[6]);
+//  PTR_PUSH(Space::Managed, m_sbop, 6 * sizeof(float_sw4));
+  m_acof = static_cast<float_sw4*> (cl::sycl::malloc_shared( 384 * sizeof(float_sw4), *QU::qu));
+//  m_acof = SW4_NEW(Space::Managed, float_sw4[384]);
+//  PTR_PUSH(Space::Managed, m_acof, 384 * sizeof(float_sw4));
+  m_bop = static_cast<float_sw4*> (cl::sycl::malloc_shared( 24 * sizeof(float_sw4), *QU::qu));
+//  m_bop = SW4_NEW(Space::Managed, float_sw4[24]);
+//  PTR_PUSH(Space::Managed, m_bop, 24 * sizeof(float_sw4));
+  m_bope = static_cast<float_sw4*> (cl::sycl::malloc_shared( 48 * sizeof(float_sw4), *QU::qu));
+//  m_bope = SW4_NEW(Space::Managed, float_sw4[48]);
+//  PTR_PUSH(Space::Managed, m_bope, 48 * sizeof(float_sw4));
+  m_ghcof = static_cast<float_sw4*> (cl::sycl::malloc_shared( 6 * sizeof(float_sw4), *QU::qu));
+//  m_ghcof = SW4_NEW(Space::Managed, float_sw4[6]);
+//  PTR_PUSH(Space::Managed, m_ghcof, 6 * sizeof(float_sw4));
+
+  m_acof_no_gp = static_cast<float_sw4*> (cl::sycl::malloc_shared( 384 * sizeof(float_sw4), *QU::qu));
+//  m_acof_no_gp = SW4_NEW(Space::Managed, float_sw4[384]);
+//  PTR_PUSH(Space::Managed, m_acof_no_gp, 384 * sizeof(float_sw4));
+  m_ghcof_no_gp = static_cast<float_sw4*> (cl::sycl::malloc_shared( 6 * sizeof(float_sw4), *QU::qu));
+//  m_ghcof_no_gp = SW4_NEW(Space::Managed, float_sw4[6]);
+//  PTR_PUSH(Space::Managed, m_ghcof_no_gp, 6 * sizeof(float_sw4));
+  m_sbop_no_gp = static_cast<float_sw4*> (cl::sycl::malloc_shared( 6 * sizeof(float_sw4), *QU::qu));
+//  m_sbop_no_gp = SW4_NEW(Space::Managed, float_sw4[6]);
+//  PTR_PUSH(Space::Managed, m_sbop_no_gp, 6 * sizeof(float_sw4));
+#endif
 #endif
 
   a_ew->GetStencilCoefficients(m_acof, m_ghcof, m_bop, m_bope, m_sbop);

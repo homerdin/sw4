@@ -29,7 +29,7 @@ bool syclMallocHost(void* addr, std::size_t size) {
 */
 #define SW4_FORCEINLINE // always_inline
 #define SYNC_DEVICE (*QU::qu).wait(); //SW4_CheckDeviceError(syclDeviceSynchronize())
-#define SYNC_STREAM //SW4_CheckDeviceError(syclStreamSynchronize(0))
+#define SYNC_STREAM QU::qu->wait();//SW4_CheckDeviceError(syclStreamSynchronize(0))
 #define SW4_PEEK //SW4_CheckDeviceError(syclPeekAtLastError());
 
 #define RAJA_HOST_DEVICE SYCL_EXTERNAL

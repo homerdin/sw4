@@ -4,6 +4,7 @@
 #include "sycl_mem.h"
 
 bool syclMallocShared(void* addr, std::size_t size) {
+  std::cerr << "About to malloc_shared, size = " << size << '\n';
   addr = cl::sycl::malloc_shared( size, *QU::qu);
   return true;
 }
