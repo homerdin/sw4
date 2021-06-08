@@ -46,6 +46,7 @@
 #include "curvilinear4sgc.h"
 #endif
 
+camp::resources::Resource QU::sycl_res{camp::resources::Sycl()};
 extern "C" {
 void tw_aniso_force(int ifirst, int ilast, int jfirst, int jlast, int kfirst,
                     int klast, float_sw4* fo, float_sw4 t, float_sw4 om,
@@ -631,10 +632,11 @@ EW::EW(const string& fileName, vector<vector<Source*>>& a_GlobalSources,
   QU::qu = allocator.getAllocationStrategy()->getTraits().queue;
 #else
   //QU::qu = new cl::sycl::queue(cl::sycl::cpu_selector());
-  QU::qu = new cl::sycl::queue();
+  //QU::qu = new cl::sycl::queue();
+  QU::qu = QU::sycl_res.get<camp::resources::Sycl>().get_queue();
 #endif
-  std::cerr << "Setting RAJA queue"; 
-  RAJA::sycl::detail::setQueue(QU::qu);
+  std::cerr << "Setting RAJA queue\n"; 
+  RAJA::sycl::detail::setQueue(&QU::sycl_res);
 
   if (sizeof(float_sw4) == 4)
     m_mpifloat = MPI_FLOAT;
@@ -2563,6 +2565,7 @@ bool EW::exactSol(float_sw4 a_t, vector<Sarray>& a_U,
   } else if (m_point_source_test) {
     for (int g = 0; g < mNumberOfGrids; g++) {
       size_t npts = a_U[g].m_npts;
+      std::cerr << "BRIAN: About to use SW4_NEW\n";
       float_sw4* uexact = SW4_NEW(Space::Managed, float_sw4[npts]);
 #if defined(ENABLE_CUDA)
       SW4_CheckDeviceError(cudaMemPrefetchAsync(
@@ -4677,7 +4680,7 @@ void EW::Force(float_sw4 a_t, vector<Sarray>& a_F,
       // for (int i=0;i<point_sources.size();i++) GPSL[i]->print_vals();
       RAJA::forall<DEFAULT_LOOP1>(
           RAJA::RangeSegment(0, point_sources.size()),
-          [=] RAJA_DEVICE(int r) { GPSL[r]->initializeTimeFunction(); });
+          [=] RAJA_DEVICE(int r) { GPS[r]->initializeTimeFunction(); });
       // if (point_sources.size()>0)std::cerr<<"Done Calling
       // GPS[r]->initializeTimeFunction()  "<<point_sources.size()<<" \n";
       SW4_MARK_END("FORCE::HOST::FIRSTCALL");

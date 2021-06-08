@@ -44,6 +44,7 @@ void prefetch_to_device(const float_sw4 *ptr);
 #define PROFILER_STOP SW4_CheckDeviceError(cudaProfilerStop())
 #elif defined(ENABLE_SYCL)
 void prefetch_to_device(const float_sw4 *ptr);
+bool mpi_supports_device_buffers();// {return true;};
 #define SW4_CheckDeviceError(err)
 #define PROFILER_START
 #define PROFILER_STOP

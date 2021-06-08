@@ -7,6 +7,7 @@ class QU {
   public:
     static cl::sycl::queue* qu;
 //    static umpire::Allocator* allocator;
+    static camp::resources::Resource sycl_res;
 };
 
 //cl::sycl::queue* QU::qu;

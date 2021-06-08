@@ -9,5 +9,5 @@ module load cmake
 module load oneapi
 module load mpi
 
-
+export SYCL_DEVICE_FILTER=level_zero
 export LD_LIBRARY_PATH=/home/bhomerding/install/proj-5.2.0/lib:$LD_LIBRARY_PATH

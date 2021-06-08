@@ -203,7 +203,7 @@ void *operator new(std::size_t size, Space loc) throw() {
   if (loc == Space::Managed) {
     // std::cout<<"Space::Managed allocation \n";
     if (size == 0) size = 1;  // new has to return an valid pointer for 0 size.
-    void *ptr;
+//    void *ptr;
 #ifndef SW4_USE_UMPIRE
     if (SW4_MALLOC_MANAGED(&ptr, size) != SW4_DEVICE_SUCCESS) {
       std::cerr << "Managed memory allocation failed " << size << "\n";
@@ -243,14 +243,14 @@ void *operator new(std::size_t size, Space loc) throw() {
 
     ptr = static_cast<void *>(allocator.allocate(size));
 #else
-    std::cout << "malloc_shared 1\n";
-    ptr = cl::sycl::malloc_shared(size, *QU::qu);
+    //std::cout << "malloc_shared 1\n";
+    auto ptr = cl::sycl::malloc_shared(size, *QU::qu);
 #endif
 #if defined(ENABLE_CUDA)
     SW4_CheckDeviceError(cudaMemAdvise(
         ptr, size, cudaMemAdviseSetPreferredLocation, global_variables.device));
 #endif
-     std::cout<<"PTR 1 "<<ptr<<"\n";
+     //std::cout<<"PTR 1 "<<ptr<<"\n";
     // SW4_CheckDeviceError(cudaMemset(ptr,0,size));
     return ptr;
 #endif  // SW4_USE_UMPIRE
@@ -384,7 +384,7 @@ void *operator new[](std::size_t size, Space loc) throw() {
 
     ptr = static_cast<void *>(allocator.allocate(size));
 #else
-    std::cout << "malloc_shared 3\n";
+    //std::cout << "malloc_shared 3\n";
     ptr = cl::sycl::malloc_shared(size, *QU::qu);
 #endif
 #if defined(ENABLE_CUDA)
@@ -1070,6 +1070,7 @@ void invert(float_sw4 *A, int msize) {
 }
 
 bool mpi_supports_device_buffers() {
+  return true;
 #if defined(ENABLE_CUDA)
 #if defined(SMPI_VERSION)
   return MPIX_Query_cuda_support() == 1;
