@@ -445,7 +445,7 @@ void EW::setupMPICommunications() {
   //   }
 }
 
-#if defined(ENABLE_GPU)
+#if defined(ENABLE_GPU) && !defined(DISABLE_COMM_ASYNC)
 void EW::communicate_array(Sarray& u, int grid) {
   // The async version using either device or managed memory works
   // spectrum-mpi/2018.02.05 on Ray. And it is slower on the Hayward case:
@@ -577,7 +577,7 @@ void EW::communicate_arrays(vector<Sarray>& u) {
   for (int g = 0; g < u.size(); g++) communicate_array(u[g], g);
 }
 
-#if defined(ENABLE_GPU)
+#if defined(ENABLE_GPU) && !defined(DISABLE_COMM_ASYNC)
 void EW::communicate_array_2d(Sarray& u, int g, int k) {
   communicate_array_2d_async(u, g, k);
   return;
@@ -648,7 +648,7 @@ void EW::communicate_array_2d(Sarray& u, int g, int k) {
   }
 }
 #endif  // if defined(ENABLE_GPU)
-#if defined(ENABLE_GPU)
+#if defined(ENABLE_GPU) && !defined(DISABLE_COMM_ASYNC)
 void EW::communicate_array_2d_ext(Sarray& u) {
   communicate_array_2d_ext_async(u);
   return;
