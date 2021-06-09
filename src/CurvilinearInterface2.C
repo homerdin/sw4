@@ -25,6 +25,13 @@ void curvilinear4sgwind(int, int, int, int, int, int, int, int, float_sw4*,
                         float_sw4*, float_sw4*, float_sw4*, float_sw4*, int,
                         char);
 
+#if defined(DISABLE_COMM_ASYNC)
+MPI_Status status_g;
+//#define MPI_Isend(buf, count, dtype, dest, tag, comm, req) MPI_Send((buf), (count), (dtype), (dest), (tag), (comm))
+//#define MPI_Irecv(buf, count, dtype, dest, tag, comm, req) MPI_Recv((buf), (count), (dtype), (dest), (tag), (comm), &status_g)
+//#define MPI_Wait(comm, req) while(0)
+#endif
+
 //-----------------------------------------------------------------------
 CurvilinearInterface2::CurvilinearInterface2(int a_gc, EW* a_ew) {
   SW4_MARK_FUNCTION;
@@ -2123,246 +2130,380 @@ void CurvilinearInterface2::allocate_mpi_buffers() {
   m_mpi_buffer_space = SW4_NEW(Space::Pinned, float_sw4[m_mpi_buffer_size]);
 }
 //-----------------------------------------------------------------------
-void CurvilinearInterface2::communicate_array(Sarray& u, bool allkplanes,
-                                              int kplane) {
-  SW4_MARK_FUNCTION;
-  //
-  // General ghost point exchange at processor boundaries.
-  //
-  // Excplicit copy to buffers, not using fancy MPI-datatypes or sendrecv.
-  //
+void CurvilinearInterface2::communicate_array( Sarray& u, bool allkplanes, int kplane )
+{
+// 
+// General ghost point exchange at processor boundaries.
+//
+// Excplicit copy to buffers, not using fancy MPI-datatypes or sendrecv.
+//
   int kb = u.m_kb;
   int ke = u.m_ke;
-  if (!allkplanes) ke = kb = kplane;
+  if( !allkplanes )
+    ke = kb = kplane;
   const int ng = m_nghost;
-  const int ni = (u.m_ie - u.m_ib + 1);
-  const int nj = (u.m_je - u.m_jb + 1);
-  const int nk = ke - kb + 1;
+  const int ni = (u.m_ie-u.m_ib+1);
+  const int nj = (u.m_je-u.m_jb+1);
+  const int nk = ke-kb+1;
   float_sw4 *sbuf1, *sbuf2, *rbuf1, *rbuf2;
 
   MPI_Request req1, req2, req3, req4;
   MPI_Status status;
-  int tag1 = 203, tag2 = 204;
+  int tag1=203, tag2=204;
 
-  size_t npts1 = ng * nj * nk;
-  size_t npts2 = ni * ng * nk;
-  size_t nptsmax = max(npts1, npts2);
-  // float_sw4* tmp = new float_sw4[4 * nptsmax * u.m_nc];
-  float_sw4* tmp = m_mpi_buffer_space;
-  if ((4 * nptsmax * u.m_nc) > m_mpi_buffer_size) {
-    std::cerr << "MPI buffer size exceeded\n Aborting\n";
-    abort();
-  }
+  size_t npts1 = ng*nj*nk;
+  size_t npts2 = ni*ng*nk;
+  size_t nptsmax = max(npts1,npts2);
+  float_sw4* tmp = new float_sw4[4*nptsmax*u.m_nc];
   sbuf1 = &tmp[0];
-  rbuf1 = &tmp[nptsmax * u.m_nc];
-  sbuf2 = &tmp[2 * nptsmax * u.m_nc];
-  rbuf2 = &tmp[3 * nptsmax * u.m_nc];
+  rbuf1 = &tmp[  nptsmax*u.m_nc];
+  sbuf2 = &tmp[2*nptsmax*u.m_nc];
+  rbuf2 = &tmp[3*nptsmax*u.m_nc];
 
-  int ib = u.m_ib;
-  int ie = u.m_ie;
-  int jb = u.m_jb;
-  int lm_nc = u.m_nc;
-  auto& uV = u.getview();
-  RAJA::RangeSegment k_range(kb, ke + 1);
+// i-direction communication  
+  MPI_Irecv( rbuf1, npts1*u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[1], tag1,
+	     m_ew->m_cartesian_communicator, &req1 );
+  MPI_Irecv( rbuf2, npts1*u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[0], tag2,
+	     m_ew->m_cartesian_communicator, &req2 );
+  if( m_ew->m_neighbor[0] != MPI_PROC_NULL )
+  for( int c=1 ; c <= u.m_nc ; c++ )
+     for( int k=kb ; k <= ke; k++ )
+        for( int j=u.m_jb ; j <= u.m_je; j++ )
+           for(int i=u.m_ib+ng ; i <= u.m_ib+2*ng-1; i++ )
+	   {
+	      size_t ind = i-(u.m_ib+ng)+ng*(j-u.m_jb)+ng*nj*(k-kb);
+	      sbuf1[ind+npts1*(c-1)]= u(c,i,j,k);
+           }
+  MPI_Isend( sbuf1, npts1*u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[0], tag1,
+	     m_ew->m_cartesian_communicator, &req3 );
+  if( m_ew->m_neighbor[1] != MPI_PROC_NULL )
+  for( int c=1 ; c <= u.m_nc ; c++ )
+     for( int k=kb ; k <= ke; k++ )
+        for( int j=u.m_jb ; j <= u.m_je; j++ )
+           for(int i=u.m_ie-2*ng+1 ; i <= u.m_ie-ng; i++ )
+	   {
+	      size_t ind = i-(u.m_ie-2*ng+1)+ng*(j-u.m_jb)+ng*nj*(k-kb);
+	      sbuf2[ind+npts1*(c-1)]= u(c,i,j,k);
+           }
+  MPI_Isend( sbuf2, npts1*u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[1], tag2,
+	     m_ew->m_cartesian_communicator, &req4);
+  MPI_Wait( &req1, &status );
+  if( m_ew->m_neighbor[1] != MPI_PROC_NULL )
+  for( int c=1 ; c <= u.m_nc ; c++ )
+     for( int k=kb ; k <= ke; k++ )
+        for( int j=u.m_jb ; j <= u.m_je; j++ )
+           for(int i=u.m_ie-ng+1 ; i <= u.m_ie; i++ )
+	   {
+	      size_t ind = i-(u.m_ie-ng+1)+ng*(j-u.m_jb)+ng*nj*(k-kb);
+	      u(c,i,j,k) = rbuf1[ind+npts1*(c-1)];
+           }  
+  MPI_Wait( &req2, &status );
+  if( m_ew->m_neighbor[0] != MPI_PROC_NULL )
+  for( int c=1 ; c <= u.m_nc ; c++ )
+     for( int k=kb ; k <= ke; k++ )
+        for( int j=u.m_jb ; j <= u.m_je; j++ )
+           for(int i=u.m_ib ; i <= u.m_ib+ng-1; i++ )
+	   {
+	      size_t ind = i-u.m_ib+ng*(j-u.m_jb)+ng*nj*(k-kb);
+	      u(c,i,j,k) = rbuf2[ind+npts1*(c-1)];
+           }
 
-#ifdef PEEKS_GALORE
-  SW4_PEEK;
-  SYNC_DEVICE;
-#endif
+  MPI_Wait( &req3, &status );
+  MPI_Wait( &req4, &status );
 
-  // i-direction communication
-  MPI_Irecv(rbuf1, npts1 * u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[1], tag1,
-            m_ew->m_cartesian_communicator, &req1);
-  MPI_Irecv(rbuf2, npts1 * u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[0], tag2,
-            m_ew->m_cartesian_communicator, &req2);
-  if (m_ew->m_neighbor[0] != MPI_PROC_NULL) {
-    // for (int c = 1; c <= u.m_nc; c++)
-    //   for (int k = kb; k <= ke; k++)
-    //     for (int j = u.m_jb; j <= u.m_je; j++)
-    //       for (int i = u.m_ib + ng; i <= u.m_ib + 2 * ng - 1; i++) {
-    RAJA::RangeSegment j_range1(u.m_jb, u.m_je + 1);
-    RAJA::RangeSegment i_range1(u.m_ib + ng, u.m_ib + 2 * ng - 1 + 1);
-    RAJA::kernel<CA_POL>(RAJA::make_tuple(k_range, j_range1, i_range1),
-                         [=] RAJA_DEVICE(int k, int j, int i) {
-                           size_t ind = i - (ib + ng) + ng * (j - jb) +
-                                        ng * nj * (k - kb);
-                           for (int c = 1; c <= lm_nc; c++) {
-                             sbuf1[ind + npts1 * (c - 1)] = uV(c, i, j, k);
-                           }
-                         });
-#ifdef PEEKS_GALORE
-    SW4_PEEK;
-    SYNC_DEVICE;
-#endif
-  }
-  MPI_Isend(sbuf1, npts1 * u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[0], tag1,
-            m_ew->m_cartesian_communicator, &req3);
-  if (m_ew->m_neighbor[1] != MPI_PROC_NULL) {
-    // for (int c = 1; c <= u.m_nc; c++)
-    //   for (int k = kb; k <= ke; k++)
-    //     for (int j = u.m_jb; j <= u.m_je; j++)
-    //       for (int i = u.m_ie - 2 * ng + 1; i <= u.m_ie - ng; i++) {
-    RAJA::RangeSegment j_range1(u.m_jb, u.m_je + 1);
-    RAJA::RangeSegment i_range1(u.m_ie - 2 * ng + 1, u.m_ie - ng + 1);
-    RAJA::kernel<CA_POL>(RAJA::make_tuple(k_range, j_range1, i_range1),
-                         [=] RAJA_DEVICE(int k, int j, int i) {
-                           size_t ind = i - (ie - 2 * ng + 1) + ng * (j - jb) +
-                                        ng * nj * (k - kb);
-                           for (int c = 1; c <= lm_nc; c++) {
-                             sbuf2[ind + npts1 * (c - 1)] = uV(c, i, j, k);
-                           }
-                         });
-#ifdef PEEKS_GALORE
-    SW4_PEEK;
-    SYNC_DEVICE;
-#endif
-  }
-  MPI_Isend(sbuf2, npts1 * u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[1], tag2,
-            m_ew->m_cartesian_communicator, &req4);
-  MPI_Wait(&req1, &status);
-  if (m_ew->m_neighbor[1] != MPI_PROC_NULL) {
-    // for (int c = 1; c <= u.m_nc; c++)
-    //   for (int k = kb; k <= ke; k++)
-    //     for (int j = u.m_jb; j <= u.m_je; j++)
-    //       for (int i = u.m_ie - ng + 1; i <= u.m_ie; i++) {
-    RAJA::RangeSegment j_range1(u.m_jb, u.m_je + 1);
-    RAJA::RangeSegment i_range1(u.m_ie - ng + 1, u.m_ie + 1);
-    RAJA::kernel<CA_POL>(RAJA::make_tuple(k_range, j_range1, i_range1),
-                         [=] RAJA_DEVICE(int k, int j, int i) {
-                           size_t ind = i - (ie - ng + 1) + ng * (j - jb) +
-                                        ng * nj * (k - kb);
-                           for (int c = 1; c <= lm_nc; c++) {
-                             uV(c, i, j, k) = rbuf1[ind + npts1 * (c - 1)];
-                           }
-                         });
-#ifdef PEEKS_GALORE
-    SW4_PEEK;
-    SYNC_DEVICE;
-#endif
-  }
-  MPI_Wait(&req2, &status);
-  if (m_ew->m_neighbor[0] != MPI_PROC_NULL) {
-    // for (int c = 1; c <= u.m_nc; c++)
-    //   for (int k = kb; k <= ke; k++)
-    //     for (int j = u.m_jb; j <= u.m_je; j++)
-    //       for (int i = u.m_ib; i <= u.m_ib + ng - 1; i++) {
-    RAJA::RangeSegment j_range1(u.m_jb, u.m_je + 1);
-    RAJA::RangeSegment i_range1(u.m_ib, u.m_ib + ng - 1 + 1);
-    RAJA::kernel<CA_POL>(RAJA::make_tuple(k_range, j_range1, i_range1),
-                         [=] RAJA_DEVICE(int k, int j, int i) {
-                           size_t ind =
-                               i - ib + ng * (j - jb) + ng * nj * (k - kb);
-                           for (int c = 1; c <= lm_nc; c++) {
-                             uV(c, i, j, k) = rbuf2[ind + npts1 * (c - 1)];
-                           }
-                         });
-#ifdef PEEKS_GALORE
-    SW4_PEEK;
-    SYNC_DEVICE;
-#endif
-  }
-
-  MPI_Wait(&req3, &status);
-  MPI_Wait(&req4, &status);
-
-  // j-direction communication
-  MPI_Irecv(rbuf1, npts2 * u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[3], tag1,
-            m_ew->m_cartesian_communicator, &req1);
-  MPI_Irecv(rbuf2, npts2 * u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[2], tag2,
-            m_ew->m_cartesian_communicator, &req2);
-
-  if (m_ew->m_neighbor[2] != MPI_PROC_NULL) {
-    // for (int c = 1; c <= u.m_nc; c++)
-    //   for (int k = kb; k <= ke; k++)
-    //     for (int j = u.m_jb + ng; j <= u.m_jb + 2 * ng - 1; j++)
-    //       for (int i = u.m_ib; i <= u.m_ie; i++) {
-
-    RAJA::RangeSegment j_range1(u.m_jb + ng, u.m_jb + 2 * ng - 1 + 1);
-    RAJA::RangeSegment i_range1(u.m_ib, u.m_ie + 1);
-    RAJA::kernel<CA_POL>(RAJA::make_tuple(k_range, j_range1, i_range1),
-                         [=] RAJA_DEVICE(int k, int j, int i) {
-                           size_t ind = i - ib + ni * (j - (jb + ng)) +
-                                        ng * ni * (k - kb);
-                           for (int c = 1; c <= lm_nc; c++) {
-                             sbuf1[ind + npts2 * (c - 1)] = uV(c, i, j, k);
-                           }
-                         });
-#ifdef PEEKS_GALORE
-    SW4_PEEK;
-    SYNC_DEVICE;
-#endif
-  }
-
-  MPI_Isend(sbuf1, npts2 * u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[2], tag1,
-            m_ew->m_cartesian_communicator, &req3);
-
-  int je = u.m_je;
-  if (m_ew->m_neighbor[3] != MPI_PROC_NULL) {
-    // for (int c = 1; c <= u.m_nc; c++)
-    //   for (int k = kb; k <= ke; k++)
-    //     for (int j = u.m_je - 2 * ng + 1; j <= u.m_je - ng; j++)
-    //       for (int i = u.m_ib; i <= u.m_ie; i++) {
-    RAJA::RangeSegment j_range2(u.m_je - 2 * ng + 1, u.m_je - ng + 1);
-    RAJA::RangeSegment i_range2(u.m_ib, u.m_ie + 1);
-    RAJA::kernel<CA_POL>(RAJA::make_tuple(k_range, j_range2, i_range2),
-                         [=] RAJA_DEVICE(int k, int j, int i) {
-                           size_t ind = i - ib + ni * (j - (je - 2 * ng + 1)) +
-                                        ng * ni * (k - kb);
-                           for (int c = 1; c <= lm_nc; c++) {
-                             sbuf2[ind + npts2 * (c - 1)] = uV(c, i, j, k);
-                           }
-                         });
-#ifdef PEEKS_GALORE
-    SW4_PEEK;
-    SYNC_DEVICE;
-#endif
-  }
-  MPI_Isend(sbuf2, npts2 * u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[3], tag2,
-            m_ew->m_cartesian_communicator, &req4);
-  MPI_Wait(&req1, &status);
-  if (m_ew->m_neighbor[3] != MPI_PROC_NULL) {
-    // for (int c = 1; c <= u.m_nc; c++){
-    //   for (int k = kb; k <= ke; k++)
-    //     for (int j = u.m_je - ng + 1; j <= u.m_je; j++)
-    //       for (int i = u.m_ib; i <= u.m_ie; i++) {
-    RAJA::RangeSegment j_range3(u.m_je - ng + 1, u.m_je + 1);
-    RAJA::RangeSegment i_range3(u.m_ib, u.m_ie + 1);
-    RAJA::kernel<CA_POL>(RAJA::make_tuple(k_range, j_range3, i_range3),
-                         [=] RAJA_DEVICE(int k, int j, int i) {
-                           size_t ind = i - ib + ni * (j - (je - ng + 1)) +
-                                        ng * ni * (k - kb);
-                           for (int c = 1; c <= lm_nc; c++) {
-                             uV(c, i, j, k) = rbuf1[ind + npts2 * (c - 1)];
-                           }
-                         });
-#ifdef PEEKS_GALORE
-    SW4_PEEK;
-    SYNC_DEVICE;
-#endif
-  }
-  MPI_Wait(&req2, &status);
-  if (m_ew->m_neighbor[2] != MPI_PROC_NULL) {
-    // for (int c = 1; c <= u.m_nc; c++)
-    //   for (int k = kb; k <= ke; k++)
-    //     for (int j = u.m_jb; j <= u.m_jb + ng - 1; j++)
-    //       for (int i = u.m_ib; i <= u.m_ie; i++) {
-    RAJA::RangeSegment j_range4(u.m_jb, u.m_jb + ng - 1 + 1);
-    RAJA::RangeSegment i_range4(u.m_ib, u.m_ie + 1);
-    RAJA::kernel<CA_POL>(RAJA::make_tuple(k_range, j_range4, i_range4),
-                         [=] RAJA_DEVICE(int k, int j, int i) {
-                           size_t ind =
-                               i - ib + ni * (j - jb) + ng * ni * (k - kb);
-                           for (int c = 1; c <= lm_nc; c++) {
-                             uV(c, i, j, k) = rbuf2[ind + npts2 * (c - 1)];
-                           }
-                         });
-#ifdef PEEKS_GALORE
-    SW4_PEEK;
-    SYNC_DEVICE;
-#endif
-  }
-
-  MPI_Wait(&req3, &status);
-  MPI_Wait(&req4, &status);
-  // delete[] tmp;
+// j-direction communication  
+  MPI_Irecv( rbuf1, npts2*u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[3], tag1,
+	     m_ew->m_cartesian_communicator, &req1 );
+  MPI_Irecv( rbuf2, npts2*u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[2], tag2,
+	     m_ew->m_cartesian_communicator, &req2 );
+  if( m_ew->m_neighbor[2] != MPI_PROC_NULL )
+  for( int c=1 ; c <= u.m_nc ; c++ )
+     for( int k=kb ; k <= ke; k++ )
+        for( int j=u.m_jb+ng ; j <= u.m_jb+2*ng-1; j++ )
+           for(int i=u.m_ib ; i <= u.m_ie; i++ )
+	   {
+	      size_t ind = i-u.m_ib+ni*(j-(u.m_jb+ng))+ng*ni*(k-kb);
+	      sbuf1[ind+npts2*(c-1)]= u(c,i,j,k);
+           }
+  MPI_Isend( sbuf1, npts2*u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[2], tag1,
+	     m_ew->m_cartesian_communicator, &req3 );
+  if( m_ew->m_neighbor[3] != MPI_PROC_NULL )
+  for( int c=1 ; c <= u.m_nc ; c++ )
+     for( int k=kb ; k <= ke; k++ )
+        for( int j=u.m_je-2*ng+1 ; j <= u.m_je-ng; j++ )
+           for(int i=u.m_ib ; i <= u.m_ie; i++ )
+	   {
+	      size_t ind = i-u.m_ib+ni*(j-(u.m_je-2*ng+1))+ng*ni*(k-kb);
+	      sbuf2[ind+npts2*(c-1)]= u(c,i,j,k);
+           }
+  MPI_Isend( sbuf2, npts2*u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[3], tag2,
+	     m_ew->m_cartesian_communicator, &req4);
+  MPI_Wait( &req1, &status );
+  if( m_ew->m_neighbor[3] != MPI_PROC_NULL )
+  for( int c=1 ; c <= u.m_nc ; c++ )
+     for( int k=kb ; k <= ke; k++ )
+        for( int j=u.m_je-ng+1 ; j <= u.m_je; j++ )
+           for(int i=u.m_ib ; i <= u.m_ie; i++ )
+	   {
+	      size_t ind = i-u.m_ib + ni*(j-(u.m_je-ng+1))+ng*ni*(k-kb);
+	      u(c,i,j,k) = rbuf1[ind+npts2*(c-1)];
+           }  
+  MPI_Wait( &req2, &status );
+  if( m_ew->m_neighbor[2] != MPI_PROC_NULL )
+  for( int c=1 ; c <= u.m_nc ; c++ )
+     for( int k=kb ; k <= ke; k++ )
+        for( int j=u.m_jb ; j <= u.m_jb+ng-1; j++ )
+           for(int i=u.m_ib ; i <= u.m_ie; i++ )
+	   {
+	      size_t ind = i-u.m_ib+ni*(j-u.m_jb)+ng*ni*(k-kb);
+	      u(c,i,j,k) = rbuf2[ind+npts2*(c-1)];
+           }
+    
+  MPI_Wait( &req3, &status );
+  MPI_Wait( &req4, &status );
+  delete[] tmp;
 }
+
+//void CurvilinearInterface2::communicate_array(Sarray& u, bool allkplanes,
+//                                              int kplane) {
+//  SW4_MARK_FUNCTION;
+//  //
+//  // General ghost point exchange at processor boundaries.
+//  //
+//  // Excplicit copy to buffers, not using fancy MPI-datatypes or sendrecv.
+//  //
+//  int kb = u.m_kb;
+//  int ke = u.m_ke;
+//  if (!allkplanes) ke = kb = kplane;
+//  const int ng = m_nghost;
+//  const int ni = (u.m_ie - u.m_ib + 1);
+//  const int nj = (u.m_je - u.m_jb + 1);
+//  const int nk = ke - kb + 1;
+//  float_sw4 *sbuf1, *sbuf2, *rbuf1, *rbuf2;
+//
+//  MPI_Request req1, req2, req3, req4;
+//  MPI_Status status;
+//  int tag1 = 203, tag2 = 204;
+//
+//  size_t npts1 = ng * nj * nk;
+//  size_t npts2 = ni * ng * nk;
+//  size_t nptsmax = max(npts1, npts2);
+//  // float_sw4* tmp = new float_sw4[4 * nptsmax * u.m_nc];
+//  float_sw4* tmp = m_mpi_buffer_space;
+//  if ((4 * nptsmax * u.m_nc) > m_mpi_buffer_size) {
+//    std::cerr << "MPI buffer size exceeded\n Aborting\n";
+//    abort();
+//  }
+//  sbuf1 = &tmp[0];
+//  rbuf1 = &tmp[nptsmax * u.m_nc];
+//  sbuf2 = &tmp[2 * nptsmax * u.m_nc];
+//  rbuf2 = &tmp[3 * nptsmax * u.m_nc];
+//
+//  int ib = u.m_ib;
+//  int ie = u.m_ie;
+//  int jb = u.m_jb;
+//  int lm_nc = u.m_nc;
+//  auto& uV = u.getview();
+//  RAJA::RangeSegment k_range(kb, ke + 1);
+//
+//#ifdef PEEKS_GALORE
+//  SW4_PEEK;
+//  SYNC_DEVICE;
+//#endif
+//
+//  // i-direction communication
+//  MPI_Irecv(rbuf1, npts1 * u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[1], tag1,
+//            m_ew->m_cartesian_communicator, &req1);
+//  MPI_Irecv(rbuf2, npts1 * u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[0], tag2,
+//            m_ew->m_cartesian_communicator, &req2);
+//  if (m_ew->m_neighbor[0] != MPI_PROC_NULL) {
+//    // for (int c = 1; c <= u.m_nc; c++)
+//    //   for (int k = kb; k <= ke; k++)
+//    //     for (int j = u.m_jb; j <= u.m_je; j++)
+//    //       for (int i = u.m_ib + ng; i <= u.m_ib + 2 * ng - 1; i++) {
+//    RAJA::RangeSegment j_range1(u.m_jb, u.m_je + 1);
+//    RAJA::RangeSegment i_range1(u.m_ib + ng, u.m_ib + 2 * ng - 1 + 1);
+//    RAJA::kernel<CA_POL>(RAJA::make_tuple(k_range, j_range1, i_range1),
+//                         [=] RAJA_DEVICE(int k, int j, int i) {
+//                           size_t ind = i - (ib + ng) + ng * (j - jb) +
+//                                        ng * nj * (k - kb);
+//                           for (int c = 1; c <= lm_nc; c++) {
+//                             sbuf1[ind + npts1 * (c - 1)] = uV(c, i, j, k);
+//                           }
+//                         });
+//#ifdef PEEKS_GALORE
+//    SW4_PEEK;
+//    SYNC_DEVICE;
+//#endif
+//  }
+//  MPI_Isend(sbuf1, npts1 * u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[0], tag1,
+//            m_ew->m_cartesian_communicator, &req3);
+//  if (m_ew->m_neighbor[1] != MPI_PROC_NULL) {
+//    // for (int c = 1; c <= u.m_nc; c++)
+//    //   for (int k = kb; k <= ke; k++)
+//    //     for (int j = u.m_jb; j <= u.m_je; j++)
+//    //       for (int i = u.m_ie - 2 * ng + 1; i <= u.m_ie - ng; i++) {
+//    RAJA::RangeSegment j_range1(u.m_jb, u.m_je + 1);
+//    RAJA::RangeSegment i_range1(u.m_ie - 2 * ng + 1, u.m_ie - ng + 1);
+//    RAJA::kernel<CA_POL>(RAJA::make_tuple(k_range, j_range1, i_range1),
+//                         [=] RAJA_DEVICE(int k, int j, int i) {
+//                           size_t ind = i - (ie - 2 * ng + 1) + ng * (j - jb) +
+//                                        ng * nj * (k - kb);
+//                           for (int c = 1; c <= lm_nc; c++) {
+//                             sbuf2[ind + npts1 * (c - 1)] = uV(c, i, j, k);
+//                           }
+//                         });
+//#ifdef PEEKS_GALORE
+//    SW4_PEEK;
+//    SYNC_DEVICE;
+//#endif
+//  }
+//  MPI_Isend(sbuf2, npts1 * u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[1], tag2,
+//            m_ew->m_cartesian_communicator, &req4);
+//  MPI_Wait(&req1, &status);
+//  if (m_ew->m_neighbor[1] != MPI_PROC_NULL) {
+//    // for (int c = 1; c <= u.m_nc; c++)
+//    //   for (int k = kb; k <= ke; k++)
+//    //     for (int j = u.m_jb; j <= u.m_je; j++)
+//    //       for (int i = u.m_ie - ng + 1; i <= u.m_ie; i++) {
+//    RAJA::RangeSegment j_range1(u.m_jb, u.m_je + 1);
+//    RAJA::RangeSegment i_range1(u.m_ie - ng + 1, u.m_ie + 1);
+//    RAJA::kernel<CA_POL>(RAJA::make_tuple(k_range, j_range1, i_range1),
+//                         [=] RAJA_DEVICE(int k, int j, int i) {
+//                           size_t ind = i - (ie - ng + 1) + ng * (j - jb) +
+//                                        ng * nj * (k - kb);
+//                           for (int c = 1; c <= lm_nc; c++) {
+//                             uV(c, i, j, k) = rbuf1[ind + npts1 * (c - 1)];
+//                           }
+//                         });
+//#ifdef PEEKS_GALORE
+//    SW4_PEEK;
+//    SYNC_DEVICE;
+//#endif
+//  }
+//  MPI_Wait(&req2, &status);
+//  if (m_ew->m_neighbor[0] != MPI_PROC_NULL) {
+//    // for (int c = 1; c <= u.m_nc; c++)
+//    //   for (int k = kb; k <= ke; k++)
+//    //     for (int j = u.m_jb; j <= u.m_je; j++)
+//    //       for (int i = u.m_ib; i <= u.m_ib + ng - 1; i++) {
+//    RAJA::RangeSegment j_range1(u.m_jb, u.m_je + 1);
+//    RAJA::RangeSegment i_range1(u.m_ib, u.m_ib + ng - 1 + 1);
+//    RAJA::kernel<CA_POL>(RAJA::make_tuple(k_range, j_range1, i_range1),
+//                         [=] RAJA_DEVICE(int k, int j, int i) {
+//                           size_t ind =
+//                               i - ib + ng * (j - jb) + ng * nj * (k - kb);
+//                           for (int c = 1; c <= lm_nc; c++) {
+//                             uV(c, i, j, k) = rbuf2[ind + npts1 * (c - 1)];
+//                           }
+//                         });
+//#ifdef PEEKS_GALORE
+//    SW4_PEEK;
+//    SYNC_DEVICE;
+//#endif
+//  }
+//
+//  MPI_Wait(&req3, &status);
+//  MPI_Wait(&req4, &status);
+//
+//  // j-direction communication
+//  MPI_Irecv(rbuf1, npts2 * u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[3], tag1,
+//            m_ew->m_cartesian_communicator, &req1);
+//  MPI_Irecv(rbuf2, npts2 * u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[2], tag2,
+//            m_ew->m_cartesian_communicator, &req2);
+//
+//  if (m_ew->m_neighbor[2] != MPI_PROC_NULL) {
+//    // for (int c = 1; c <= u.m_nc; c++)
+//    //   for (int k = kb; k <= ke; k++)
+//    //     for (int j = u.m_jb + ng; j <= u.m_jb + 2 * ng - 1; j++)
+//    //       for (int i = u.m_ib; i <= u.m_ie; i++) {
+//
+//    RAJA::RangeSegment j_range1(u.m_jb + ng, u.m_jb + 2 * ng - 1 + 1);
+//    RAJA::RangeSegment i_range1(u.m_ib, u.m_ie + 1);
+//    RAJA::kernel<CA_POL>(RAJA::make_tuple(k_range, j_range1, i_range1),
+//                         [=] RAJA_DEVICE(int k, int j, int i) {
+//                           size_t ind = i - ib + ni * (j - (jb + ng)) +
+//                                        ng * ni * (k - kb);
+//                           for (int c = 1; c <= lm_nc; c++) {
+//                             sbuf1[ind + npts2 * (c - 1)] = uV(c, i, j, k);
+//                           }
+//                         });
+//#ifdef PEEKS_GALORE
+//    SW4_PEEK;
+//    SYNC_DEVICE;
+//#endif
+//  }
+//
+//  MPI_Isend(sbuf1, npts2 * u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[2], tag1,
+//            m_ew->m_cartesian_communicator, &req3);
+//
+//  int je = u.m_je;
+//  if (m_ew->m_neighbor[3] != MPI_PROC_NULL) {
+//    // for (int c = 1; c <= u.m_nc; c++)
+//    //   for (int k = kb; k <= ke; k++)
+//    //     for (int j = u.m_je - 2 * ng + 1; j <= u.m_je - ng; j++)
+//    //       for (int i = u.m_ib; i <= u.m_ie; i++) {
+//    RAJA::RangeSegment j_range2(u.m_je - 2 * ng + 1, u.m_je - ng + 1);
+//    RAJA::RangeSegment i_range2(u.m_ib, u.m_ie + 1);
+//    RAJA::kernel<CA_POL>(RAJA::make_tuple(k_range, j_range2, i_range2),
+//                         [=] RAJA_DEVICE(int k, int j, int i) {
+//                           size_t ind = i - ib + ni * (j - (je - 2 * ng + 1)) +
+//                                        ng * ni * (k - kb);
+//                           for (int c = 1; c <= lm_nc; c++) {
+//                             sbuf2[ind + npts2 * (c - 1)] = uV(c, i, j, k);
+//                           }
+//                         });
+//#ifdef PEEKS_GALORE
+//    SW4_PEEK;
+//    SYNC_DEVICE;
+//#endif
+//  }
+//  MPI_Isend(sbuf2, npts2 * u.m_nc, m_ew->m_mpifloat, m_ew->m_neighbor[3], tag2,
+//            m_ew->m_cartesian_communicator, &req4);
+//  MPI_Wait(&req1, &status);
+//  if (m_ew->m_neighbor[3] != MPI_PROC_NULL) {
+//    // for (int c = 1; c <= u.m_nc; c++){
+//    //   for (int k = kb; k <= ke; k++)
+//    //     for (int j = u.m_je - ng + 1; j <= u.m_je; j++)
+//    //       for (int i = u.m_ib; i <= u.m_ie; i++) {
+//    RAJA::RangeSegment j_range3(u.m_je - ng + 1, u.m_je + 1);
+//    RAJA::RangeSegment i_range3(u.m_ib, u.m_ie + 1);
+//    RAJA::kernel<CA_POL>(RAJA::make_tuple(k_range, j_range3, i_range3),
+//                         [=] RAJA_DEVICE(int k, int j, int i) {
+//                           size_t ind = i - ib + ni * (j - (je - ng + 1)) +
+//                                        ng * ni * (k - kb);
+//                           for (int c = 1; c <= lm_nc; c++) {
+//                             uV(c, i, j, k) = rbuf1[ind + npts2 * (c - 1)];
+//                           }
+//                         });
+//#ifdef PEEKS_GALORE
+//    SW4_PEEK;
+//    SYNC_DEVICE;
+//#endif
+//  }
+//  MPI_Wait(&req2, &status);
+//  if (m_ew->m_neighbor[2] != MPI_PROC_NULL) {
+//    // for (int c = 1; c <= u.m_nc; c++)
+//    //   for (int k = kb; k <= ke; k++)
+//    //     for (int j = u.m_jb; j <= u.m_jb + ng - 1; j++)
+//    //       for (int i = u.m_ib; i <= u.m_ie; i++) {
+//    RAJA::RangeSegment j_range4(u.m_jb, u.m_jb + ng - 1 + 1);
+//    RAJA::RangeSegment i_range4(u.m_ib, u.m_ie + 1);
+//    RAJA::kernel<CA_POL>(RAJA::make_tuple(k_range, j_range4, i_range4),
+//                         [=] RAJA_DEVICE(int k, int j, int i) {
+//                           size_t ind =
+//                               i - ib + ni * (j - jb) + ng * ni * (k - kb);
+//                           for (int c = 1; c <= lm_nc; c++) {
+//                             uV(c, i, j, k) = rbuf2[ind + npts2 * (c - 1)];
+//                           }
+//                         });
+//#ifdef PEEKS_GALORE
+//    SW4_PEEK;
+//    SYNC_DEVICE;
+//#endif
+//  }
+//
+//  MPI_Wait(&req3, &status);
+//  MPI_Wait(&req4, &status);
+//  // delete[] tmp;
+//}
