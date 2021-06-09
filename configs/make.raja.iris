@@ -30,7 +30,7 @@ HDF5_HOME = /gpfs/jlse-fs0/users/bhomerding/spack/opt/spack/linux-rhel7-haswell/
 #EXTRA_FORT_FLAGS = -qstrict
 
 
-MORE_FLAGS = -DENABLE_MPI_TIMING_BARRIER=1 -DSW4_MANAGED_MPI_BUFFERS=1 -DUSE_DIRECT_INVERSE=1 
+MORE_FLAGS = -DENABLE_MPI_TIMING_BARRIER=1 -DSW4_MANAGED_MPI_BUFFERS=1 -DUSE_DIRECT_INVERSE=1 -DDISABLE_COMM_ASYNC
 #-I ${LAPACK_INC}
 #MORE_LINK_FLAGS = -L /soft/compilers/intel-2019/compilers_and_libraries/linux/mkl/lib/intel64 -L/soft/compilers/intel-2019/compilers_and_libraries/linux/lib/intel64 -limf -lintlc -lsvml -lm -ldl -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lifcore 
 #MORE_LINK_FLAGS = -L/soft/restricted/CNDA/sdk/2020.12.15.1-ats/oneapi/compiler/20210130/linux/compiler/lib/intel64_lin -lirc -mkl -fsycl -Wl,--defsym,main=MAIN__ -fsycl-device-lib=all -lifcore
