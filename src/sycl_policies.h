@@ -415,7 +415,7 @@ using INJ_POL_ASYNC =
     RAJA::KernelPolicy<
       RAJA::statement::SyclKernel<
         RAJA::statement::For<0, RAJA::sycl_global_2<4>,      // k
-          RAJA::statement::For<1, RAJA::sycl_global_1<16>,    // j
+          RAJA::statement::For<1, RAJA::sycl_global_1<4>,    // j
             RAJA::statement::For<2, RAJA::sycl_global_0<16>, // i
               RAJA::statement::Lambda<0>
             >
